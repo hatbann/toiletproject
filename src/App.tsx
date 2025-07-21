@@ -1,9 +1,18 @@
-import "./App.css";
+import { Route, Routes } from "react-router-dom";
+import ToiletPage from "./app/toilets/page";
+import AddToiletPage from "./app/add/page";
+import AdminPage from "./app/admin/page";
+import HomePage from "./app/page";
 
-export default function App() {
+function App() {
   return (
-    <div className="p-10 text-center">
-      <h1 className="text-3xl font-bold text-blue-500">Tailwind 정상 작동!</h1>
-    </div>
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/toilets" element={<ToiletPage />} />
+      <Route path="/add" element={<AddToiletPage />} />
+      <Route path="/admin" element={<AdminPage />} />
+    </Routes>
   );
 }
+
+export default App;
