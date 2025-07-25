@@ -26,7 +26,7 @@ export default function HomePage() {
         {/* Main Actions */}
         <div className="grid gap-4 mb-8">
           <Link to="/toilets">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200 hover:border-blue-300">
+            <Card className="hover:shadow-lg bg-white transition-shadow cursor-pointer border-2 border-blue-200 hover:border-blue-400">
               <CardHeader className="text-center">
                 <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                   <Search className="w-8 h-8 text-blue-600" />
@@ -42,7 +42,7 @@ export default function HomePage() {
           </Link>
 
           <Link to="/add">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-200 hover:border-green-300">
+            <Card className="hover:shadow-lg bg-white transition-shadow cursor-pointer border-2 border-green-200 hover:border-green-300">
               <CardHeader className="text-center">
                 <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                   <Plus className="w-8 h-8 text-green-600" />
@@ -60,13 +60,13 @@ export default function HomePage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-8">
-          <Card>
+          <Card className="bg-white">
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-blue-600">1,234</div>
               <div className="text-sm text-gray-600">공공화장실</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white">
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-green-600">567</div>
               <div className="text-sm text-gray-600">사용자 등록</div>

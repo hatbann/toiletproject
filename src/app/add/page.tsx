@@ -66,11 +66,13 @@ export default function RegisterPage() {
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
               {/* 기본 정보 */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <Label htmlFor="name">화장실 이름 *</Label>
+                  <Label htmlFor="name" className="mb-2">
+                    화장실 이름 *
+                  </Label>
                   <Input
                     id="name"
                     placeholder="예: 스타벅스 강남점, 롯데백화점 1층"
@@ -83,7 +85,9 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="address">주소 *</Label>
+                  <Label htmlFor="address" className="mb-2">
+                    주소 *
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       id="address"
@@ -107,7 +111,9 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="description">상세 설명</Label>
+                  <Label htmlFor="description" className="mb-2">
+                    상세 설명
+                  </Label>
                   <Textarea
                     id="description"
                     placeholder="화장실 위치나 이용 방법에 대한 추가 정보를 입력해주세요"
@@ -124,10 +130,10 @@ export default function RegisterPage() {
               </div>
 
               {/* 비밀번호 정보 */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>비밀번호 필요 여부</Label>
+                    <Label className="mb-2">비밀번호 필요 여부</Label>
                     <p className="text-sm text-gray-600">
                       화장실 이용에 비밀번호가 필요한가요?
                     </p>
@@ -142,7 +148,9 @@ export default function RegisterPage() {
 
                 {formData.hasPassword && (
                   <div>
-                    <Label htmlFor="passwordHint">비밀번호 힌트</Label>
+                    <Label htmlFor="passwordHint" className="mb-2">
+                      비밀번호 힌트
+                    </Label>
                     <Input
                       id="passwordHint"
                       placeholder="예: 카운터에서 문의, 영수증 뒷면 확인"
@@ -161,7 +169,7 @@ export default function RegisterPage() {
               {/* 사진 업로드 */}
               <div className="space-y-4">
                 <div>
-                  <Label>인증 사진 *</Label>
+                  <Label className="mb-2">인증 사진 *</Label>
                   <p className="text-sm text-gray-600 mb-2">
                     화장실 입구나 내부 사진을 업로드해주세요 (최대 3장)
                   </p>
@@ -185,6 +193,9 @@ export default function RegisterPage() {
                         variant="outline"
                         size="sm"
                         className="mt-2 bg-transparent"
+                        onClick={() =>
+                          document.getElementById("photo-upload")?.click()
+                        }
                       >
                         <Upload className="w-4 h-4 mr-2" />
                         파일 선택
@@ -228,7 +239,11 @@ export default function RegisterPage() {
 
               {/* 제출 버튼 */}
               <div className="pt-4">
-                <Button type="submit" className="w-full" size="lg">
+                <Button
+                  type="submit"
+                  className="w-full bg-blue-500 text-white"
+                  size="lg"
+                >
                   등록 요청하기
                 </Button>
                 <p className="text-xs text-gray-500 text-center mt-2">

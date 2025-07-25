@@ -113,7 +113,10 @@ export default function MapPage() {
         </h2>
         <div className="space-y-3">
           {toilets.map((toilet) => (
-            <Card key={toilet.id} className="hover:shadow-md transition-shadow">
+            <Card
+              key={toilet.id}
+              className="hover:shadow-md transition-shadow py-0"
+            >
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
