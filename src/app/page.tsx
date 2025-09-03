@@ -15,6 +15,13 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-end mb-4">
+            <Link to="/login">
+              <Button variant="outline" size="sm">
+                로그인
+              </Button>
+            </Link>
+          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             🚽 화장실 찾기
           </h1>

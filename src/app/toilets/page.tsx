@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import KakaoMap from "@/components/KakaoMap";
 import {
   ArrowLeft,
-  MapPin,
   Navigation,
   Search,
   Lock,
@@ -23,6 +23,8 @@ interface Toilet {
   type: "public" | "user";
   hasPassword: boolean;
   rating?: number;
+  lat: number;
+  lng: number;
 }
 
 const mockToilets: Toilet[] = [
@@ -33,6 +35,8 @@ const mockToilets: Toilet[] = [
     distance: "50m",
     type: "public",
     hasPassword: false,
+    lat: 37.4979,
+    lng: 127.0276,
   },
   {
     id: "2",
@@ -42,6 +46,8 @@ const mockToilets: Toilet[] = [
     type: "user",
     hasPassword: true,
     rating: 4.5,
+    lat: 37.4985,
+    lng: 127.0285,
   },
   {
     id: "3",
@@ -51,6 +57,8 @@ const mockToilets: Toilet[] = [
     type: "user",
     hasPassword: false,
     rating: 4.2,
+    lat: 37.4990,
+    lng: 127.0270,
   },
 ];
 
@@ -68,10 +76,30 @@ export default function MapPage() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingToilet, setRatingToilet] = useState<Toilet | null>(null);
   const [userRating, setUserRating] = useState(0);
+  const [mapCenter, setMapCenter] = useState({ lat: 37.4979, lng: 127.0276 });
 
   const handleEditRequest = (toilet: Toilet) => {
     setSelectedToilet(toilet);
     setShowEditModal(true);
+  };
+
+  const handleCurrentLocationClick = () => {
+    if (!navigator.geolocation) {
+      alert('현재 위치를 가져올 수 없습니다.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setMapCenter({ lat, lng });
+      },
+      (error) => {
+        console.error('위치 정보를 가져올 수 없습니다:', error);
+        alert('위치 정보를 가져올 수 없습니다.');
+      }
+    );
   };
 
   const handleSubmitEditRequest = () => {
@@ -138,20 +166,25 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Map Placeholder */}
+      {/* Kakao Map */}
       <div className="container mx-auto px-4 mb-4">
-        <div className="bg-gray-200 rounded-lg h-64 flex items-center justify-center">
-          <div className="text-center text-gray-500">
-            <MapPin className="w-12 h-12 mx-auto mb-2" />
-            <p>지도가 여기에 표시됩니다</p>
-            <p className="text-sm">(카카오맵 또는 네이버맵 API 연동)</p>
-          </div>
-        </div>
+        <KakaoMap 
+          toilets={toilets}
+          center={mapCenter}
+          onToiletClick={(toilet) => {
+            console.log('화장실 클릭:', toilet);
+            // 필요시 화장실 상세 정보 모달 등을 표시할 수 있음
+          }}
+        />
       </div>
 
       {/* Current Location Button */}
       <div className="container mx-auto px-4 mb-4">
-        <Button className="w-full bg-transparent" variant="outline">
+        <Button 
+          className="w-full bg-transparent" 
+          variant="outline"
+          onClick={handleCurrentLocationClick}
+        >
           <Navigation className="w-4 h-4 mr-2" />
           현재 위치에서 찾기
         </Button>
