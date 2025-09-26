@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 사용자 모델
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("user") // "user" 또는 "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 관계
+  toilets      Toilet[]      // 사용자가 등록한 화장실들
+  ratings      Rating[]      // 사용자가 남긴 별점들
+  editRequests EditRequest[] // 사용자가 제출한 수정 요청들
+
+  @@map("users")
+}
+
+// 화장실 모델
+model Toilet {
+  id          String   @id @default(cuid())
+  name        String
+  address     String
+  latitude    Float    // 위도
+  longitude   Float    // 경도
+  type        String   // "public" 또는 "user"
+  hasPassword Boolean  @default(false)
+  passwordHint String? // 비밀번호 힌트
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 관계
+  creatorId    String?
+  creator      User?         @relation(fields: [creatorId], references: [id])
+  ratings      Rating[]      // 이 화장실의 별점들
+  editRequests EditRequest[] // 이 화장실의 수정 요청들
+  images       Image[]       // 화장실 이미지들
+
+  @@map("toilets")
+}
+
+// 별점 모델
+model Rating {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5점
+  createdAt DateTime @default(now())
+
+  // 관계
+  userId   String
+  toiletId String
+  user     User   @relation(fields: [userId], references: [id])
+  toilet   Toilet @relation(fields: [toiletId], references: [id])
+
+  // 한 사용자가 한 화장실에 하나의 별점만 가능
+  @@unique([userId, toiletId])
+  @@map("ratings")
+}
+
+// 수정 요청 모델
+model EditRequest {
+  id            String   @id @default(cuid())
+  reason        String   // 수정 사유
+  description   String?  // 상세 설명
+  status        String   @default("pending") // "pending", "approved", "rejected"
+  adminResponse String?  // 관리자 응답
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 관계
+  userId   String
+  toiletId String
+  user     User   @relation(fields: [userId], references: [id])
+  toilet   Toilet @relation(fields: [toiletId], references: [id])
+
+  @@map("edit_requests")
+}
+
+// 이미지 모델 (나중에 추가할 기능)
+model Image {
+  id        String   @id @default(cuid())
+  url       String
+  createdAt DateTime @default(now())
+
+  // 관계
+  toiletId String
+  toilet   Toilet @relation(fields: [toiletId], references: [id])
+
+  @@map("images")
+}
