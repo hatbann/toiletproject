@@ -7,30 +7,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { authAPI, authUtils } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
-      alert("이메일과 비밀번호를 모두 입력해주세요.");
+      setError("이메일과 비밀번호를 모두 입력해주세요.");
       return;
     }
 
     setIsLoading(true);
-    
-    // 임시 로그인 로직 (실제로는 API 호출)
-    setTimeout(() => {
-      alert("로그인 성공!");
+    setError("");
+
+    try {
+      const response = await authAPI.login(email, password);
+
+      if (response.success && response.data) {
+        // 토큰과 사용자 정보 저장
+        authUtils.setToken(response.data.token);
+        authUtils.setUser(response.data.user);
+
+        alert("로그인 성공!");
+        navigate("/toilets");
+      } else {
+        setError(response.error || "로그인에 실패했습니다.");
+      }
+    } catch (err) {
+      setError("로그인 중 오류가 발생했습니다.");
+      console.error("로그인 오류:", err);
+    } finally {
       setIsLoading(false);
-      navigate("/");
-    }, 1000);
+    }
   };
 
   return (
@@ -56,6 +72,12 @@ export default function LoginPage() {
           
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">이메일</Label>
                 <Input
@@ -95,9 +117,9 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? "로그인 중..." : "로그인"}
@@ -113,24 +135,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mt-4 text-center">
-              <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                비밀번호를 잊으셨나요?
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Demo 계정 안내 */}
-        <Card className="mt-4 bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <h3 className="font-medium text-blue-900 mb-2">데모 계정</h3>
-            <p className="text-sm text-blue-700 mb-2">
-              테스트용으로 아무 이메일과 비밀번호를 입력하세요.
-            </p>
-            <div className="text-xs text-blue-600">
-              예: test@example.com / password123
-            </div>
           </CardContent>
         </Card>
       </div>

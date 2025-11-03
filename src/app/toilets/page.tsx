@@ -1,72 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import KakaoMap from "@/components/KakaoMap";
+import NaverMap from "@/components/NaverMap";
 import {
-  ArrowLeft,
-  Navigation,
-  Search,
-  Lock,
-  Unlock,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+  toiletAPI,
+  ratingAPI,
+  editRequestAPI,
+  authUtils,
+  type Toilet,
+} from "@/lib/api";
+import { ArrowLeft, Navigation, Search, Lock, Unlock } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
-interface Toilet {
-  id: string;
-  name: string;
-  address: string;
-  distance: string;
-  type: "public" | "user";
-  hasPassword: boolean;
-  rating?: number;
-  lat: number;
-  lng: number;
-}
+// 거리 계산 함수 (간단한 직선 거리)
+const calculateDistance = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): string => {
+  const R = 6371; // 지구 반지름 (km)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c * 1000; // 미터로 변환
 
-const mockToilets: Toilet[] = [
-  {
-    id: "1",
-    name: "강남역 공공화장실",
-    address: "서울시 강남구 강남대로 지하",
-    distance: "50m",
-    type: "public",
-    hasPassword: false,
-    lat: 37.4979,
-    lng: 127.0276,
-  },
-  {
-    id: "2",
-    name: "스타벅스 강남점",
-    address: "서울시 강남구 테헤란로 123",
-    distance: "120m",
-    type: "user",
-    hasPassword: true,
-    rating: 4.5,
-    lat: 37.4985,
-    lng: 127.0285,
-  },
-  {
-    id: "3",
-    name: "CGV 강남점",
-    address: "서울시 강남구 강남대로 456",
-    distance: "200m",
-    type: "user",
-    hasPassword: false,
-    rating: 4.2,
-    lat: 37.4990,
-    lng: 127.0270,
-  },
-];
+  if (d < 1000) {
+    return `${Math.round(d)}m`;
+  } else {
+    return `${(d / 1000).toFixed(1)}km`;
+  }
+};
 
 export default function MapPage() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [toilets] = useState<Toilet[]>(mockToilets);
-  // 임시 로그인 상태 (실제로는 컨텍스트나 전역 상태로 관리해야 함)
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [toilets, setToilets] = useState<Toilet[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(authUtils.isAuthenticated());
+  const [currentUser, setCurrentUser] = useState(authUtils.getUser());
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedToilet, setSelectedToilet] = useState<Toilet | null>(null);
   const [editRequest, setEditRequest] = useState({
@@ -78,6 +61,30 @@ export default function MapPage() {
   const [userRating, setUserRating] = useState(0);
   const [mapCenter, setMapCenter] = useState({ lat: 37.4979, lng: 127.0276 });
 
+  // 화장실 데이터 로드
+  useEffect(() => {
+    const loadToilets = async () => {
+      try {
+        setLoading(true);
+        const response = await toiletAPI.getAll();
+
+        if (response.success && response.data) {
+          setToilets(response.data.data);
+          setError(null);
+        } else {
+          setError(response.error || "화장실 데이터를 불러올 수 없습니다.");
+        }
+      } catch (err) {
+        setError("네트워크 오류가 발생했습니다.");
+        console.error("화장실 데이터 로드 실패:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadToilets();
+  }, []);
+
   const handleEditRequest = (toilet: Toilet) => {
     setSelectedToilet(toilet);
     setShowEditModal(true);
@@ -85,7 +92,7 @@ export default function MapPage() {
 
   const handleCurrentLocationClick = () => {
     if (!navigator.geolocation) {
-      alert('현재 위치를 가져올 수 없습니다.');
+      alert("현재 위치를 가져올 수 없습니다.");
       return;
     }
 
@@ -96,19 +103,35 @@ export default function MapPage() {
         setMapCenter({ lat, lng });
       },
       (error) => {
-        console.error('위치 정보를 가져올 수 없습니다:', error);
-        alert('위치 정보를 가져올 수 없습니다.');
+        console.error("위치 정보를 가져올 수 없습니다:", error);
+        alert("위치 정보를 가져올 수 없습니다.");
       }
     );
   };
 
-  const handleSubmitEditRequest = () => {
-    if (!selectedToilet || !editRequest.reason.trim()) return;
+  const handleSubmitEditRequest = async () => {
+    if (!selectedToilet || !editRequest.reason.trim() || !currentUser) return;
 
-    alert("수정 요청이 제출되었습니다. 관리자 검토 후 반영됩니다.");
-    setShowEditModal(false);
-    setSelectedToilet(null);
-    setEditRequest({ reason: "", description: "" });
+    try {
+      const response = await editRequestAPI.create(
+        selectedToilet.id,
+        currentUser.id,
+        editRequest.reason,
+        editRequest.description || undefined
+      );
+
+      if (response.success) {
+        alert("수정 요청이 제출되었습니다. 관리자 검토 후 반영됩니다.");
+        setShowEditModal(false);
+        setSelectedToilet(null);
+        setEditRequest({ reason: "", description: "" });
+      } else {
+        alert("수정 요청 제출에 실패했습니다: " + response.error);
+      }
+    } catch (error) {
+      console.error("수정 요청 제출 실패:", error);
+      alert("수정 요청 제출 중 오류가 발생했습니다.");
+    }
   };
 
   const handleRatingClick = (toilet: Toilet) => {
@@ -120,13 +143,50 @@ export default function MapPage() {
     setShowRatingModal(true);
   };
 
-  const handleSubmitRating = () => {
-    if (!ratingToilet || userRating === 0) return;
+  const handleSubmitRating = async () => {
+    if (!ratingToilet || userRating === 0 || !currentUser) return;
 
-    alert(`${userRating}점을 남겼습니다.`);
-    setShowRatingModal(false);
-    setRatingToilet(null);
-    setUserRating(0);
+    try {
+      const response = await ratingAPI.create(
+        ratingToilet.id,
+        currentUser.id,
+        userRating
+      );
+
+      if (response.success) {
+        alert(`${userRating}점을 남겼습니다.`);
+        setShowRatingModal(false);
+        setRatingToilet(null);
+        setUserRating(0);
+
+        // 화장실 목록 새로고침
+        const toiletsResponse = await toiletAPI.getAll();
+        if (toiletsResponse.success && toiletsResponse.data) {
+          setToilets(toiletsResponse.data.data);
+        }
+      } else {
+        alert("별점 등록에 실패했습니다: " + response.error);
+      }
+    } catch (error) {
+      console.error("별점 등록 실패:", error);
+      alert("별점 등록 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 로그인/로그아웃 핸들러
+  const handleAuthClick = () => {
+    if (isLoggedIn) {
+      // 로그아웃
+      if (confirm("로그아웃 하시겠습니까?")) {
+        authUtils.logout();
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        alert("로그아웃되었습니다.");
+      }
+    } else {
+      // 로그인 페이지로 이동
+      navigate("/login");
+    }
   };
 
   return (
@@ -144,7 +204,7 @@ export default function MapPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsLoggedIn(!isLoggedIn)}
+              onClick={handleAuthClick}
               className="ml-auto"
             >
               {isLoggedIn ? "로그아웃" : "로그인"}
@@ -166,13 +226,13 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Kakao Map */}
+      {/* Naver Map */}
       <div className="container mx-auto px-4 mb-4">
-        <KakaoMap 
+        <NaverMap
           toilets={toilets}
           center={mapCenter}
           onToiletClick={(toilet) => {
-            console.log('화장실 클릭:', toilet);
+            console.log("화장실 클릭:", toilet);
             // 필요시 화장실 상세 정보 모달 등을 표시할 수 있음
           }}
         />
@@ -180,8 +240,8 @@ export default function MapPage() {
 
       {/* Current Location Button */}
       <div className="container mx-auto px-4 mb-4">
-        <Button 
-          className="w-full bg-transparent" 
+        <Button
+          className="w-full bg-transparent"
           variant="outline"
           onClick={handleCurrentLocationClick}
         >
@@ -190,92 +250,121 @@ export default function MapPage() {
         </Button>
       </div>
 
-      {/* Toilet List */}
-      <div className="container mx-auto px-4 pb-8">
-        <h2 className="text-lg font-semibold mb-4">
-          근처 화장실 ({toilets.length}개)
-        </h2>
-        <div className="space-y-3">
-          {toilets.map((toilet) => (
-            <Card
-              key={toilet.id}
-              className="hover:shadow-md transition-shadow py-0"
+      {/* Loading and Error States */}
+      {loading && (
+        <div className="container mx-auto px-4 py-8 text-center">
+          <div className="text-gray-600">화장실 정보를 불러오는 중...</div>
+        </div>
+      )}
+
+      {error && (
+        <div className="container mx-auto px-4 py-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+            오류: {error}
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-2 underline"
             >
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium">{toilet.name}</h3>
-                      <Badge
-                        variant={
-                          toilet.type === "public" ? "default" : "secondary"
-                        }
-                      >
-                        {toilet.type === "public" ? "공공" : "사용자"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {toilet.address}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="text-blue-600 font-medium">
-                        {toilet.distance}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {toilet.hasPassword ? (
-                          <>
-                            <Lock className="w-3 h-3 text-red-500 flex-shrink-0" />
-                            {isLoggedIn ? (
-                              <span className="text-red-500 text-xs">
-                                비밀번호: 1234
-                              </span>
-                            ) : (
-                              <span className="text-red-500 text-xs">
-                                로그인 필요
-                              </span>
+              다시 시도
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toilet List */}
+      {!loading && !error && (
+        <div className="container mx-auto px-4 pb-8">
+          <h2 className="text-lg font-semibold mb-4">
+            {/*          근처 화장실 ({toilets.length}개) */}
+          </h2>
+          <div className="space-y-3">
+            {toilets &&
+              toilets.map((toilet) => (
+                <Card
+                  key={toilet.id}
+                  className="hover:shadow-md transition-shadow py-0"
+                >
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium">{toilet.name}</h3>
+                          <Badge
+                            variant={
+                              toilet.type === "public" ? "default" : "secondary"
+                            }
+                          >
+                            {toilet.type === "public" ? "공공" : "사용자"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {toilet.address}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="text-blue-600 font-medium">
+                            {calculateDistance(
+                              mapCenter.lat,
+                              mapCenter.lng,
+                              toilet.latitude,
+                              toilet.longitude
                             )}
-                          </>
-                        ) : (
-                          <>
-                            <Unlock className="w-3 h-3 text-green-500 flex-shrink-0" />
-                            <span className="text-green-500 text-xs">
-                              자유이용
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {toilet.hasPassword ? (
+                              <>
+                                <Lock className="w-3 h-3 text-red-500 flex-shrink-0" />
+                                {isLoggedIn ? (
+                                  <span className="text-red-500 text-xs">
+                                    비밀번호: 1234
+                                  </span>
+                                ) : (
+                                  <span className="text-red-500 text-xs">
+                                    로그인 필요
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Unlock className="w-3 h-3 text-green-500 flex-shrink-0" />
+                                <span className="text-green-500 text-xs">
+                                  자유이용
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            className="flex items-center gap-1 text-yellow-600 text-xs hover:text-yellow-700 hover:bg-yellow-50 px-2 py-1 rounded transition-colors"
+                            onClick={() => handleRatingClick(toilet)}
+                          >
+                            <span>⭐ {toilet.rating || "평점 없음"}</span>
+                            <span className="text-gray-500 text-xs">
+                              클릭하여 별점 남기기
                             </span>
-                          </>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline">
+                          길찾기
+                        </Button>
+                        {toilet.type === "user" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditRequest(toilet)}
+                            className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                          >
+                            수정요청
+                          </Button>
                         )}
                       </div>
-                      <button
-                        className="flex items-center gap-1 text-yellow-600 text-xs hover:text-yellow-700 hover:bg-yellow-50 px-2 py-1 rounded transition-colors"
-                        onClick={() => handleRatingClick(toilet)}
-                      >
-                        <span>⭐ {toilet.rating || "평점 없음"}</span>
-                        <span className="text-gray-500 text-xs">
-                          클릭하여 별점 남기기
-                        </span>
-                      </button>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
-                      길찾기
-                    </Button>
-                    {toilet.type === "user" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditRequest(toilet)}
-                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                      >
-                        수정요청
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 수정 요청 모달 */}
       {showEditModal && selectedToilet && (

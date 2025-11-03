@@ -4,6 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import toiletsRouter from './routes/toilets';
 import ratingsRouter from './routes/ratings';
+import editRequestsRouter from './routes/editRequests';
+import authRouter from './routes/auth';
+import publicDataRouter from './routes/publicData';
 
 // 환경변수 로드
 dotenv.config();
@@ -32,8 +35,48 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// 임시 사용자 목록 조회 (테스트용)
+app.get('/api/users', async (req, res) => {
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true
+      }
+    });
+
+    res.json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users'
+    });
+  }
+});
+
 // 화장실 API 라우트 연결
 app.use('/api/toilets', toiletsRouter);
+
+// 별점 API 라우트 연결
+app.use('/api/ratings', ratingsRouter);
+
+// 수정 요청 API 라우트 연결
+app.use('/api/edit-requests', editRequestsRouter);
+
+// 사용자 인증 API 라우트 연결
+app.use('/api/auth', authRouter);
+
+// 공공데이터 동기화 API 라우트 연결
+app.use('/api/public-data', publicDataRouter);
 
 // 서버 시작
 app.listen(PORT, () => {

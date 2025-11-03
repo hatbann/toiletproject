@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { authAPI, authUtils } from "@/lib/api";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -20,6 +21,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,27 +31,27 @@ export default function RegisterPage() {
 
   const validateForm = () => {
     if (!formData.nickname.trim()) {
-      alert("닉네임을 입력해주세요.");
+      setError("닉네임을 입력해주세요.");
       return false;
     }
     if (!formData.email.trim()) {
-      alert("이메일을 입력해주세요.");
+      setError("이메일을 입력해주세요.");
       return false;
     }
     if (!formData.email.includes("@")) {
-      alert("올바른 이메일 형식을 입력해주세요.");
+      setError("올바른 이메일 형식을 입력해주세요.");
       return false;
     }
     if (formData.password.length < 6) {
-      alert("비밀번호는 6자 이상이어야 합니다.");
+      setError("비밀번호는 6자 이상이어야 합니다.");
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
-      alert("비밀번호가 일치하지 않습니다.");
+      setError("비밀번호가 일치하지 않습니다.");
       return false;
     }
     if (!agreeTerms) {
-      alert("서비스 이용약관에 동의해주세요.");
+      setError("서비스 이용약관에 동의해주세요.");
       return false;
     }
     return true;
@@ -57,17 +59,35 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    setError("");
     if (!validateForm()) return;
 
     setIsLoading(true);
-    
-    // 임시 회원가입 로직 (실제로는 API 호출)
-    setTimeout(() => {
-      alert("회원가입이 완료되었습니다!");
+
+    try {
+      const response = await authAPI.register(
+        formData.email,
+        formData.password,
+        formData.nickname
+      );
+
+      if (response.success && response.data) {
+        // 회원가입 성공 시 자동 로그인
+        authUtils.setToken(response.data.token);
+        authUtils.setUser(response.data.user);
+
+        alert("회원가입이 완료되었습니다!");
+        navigate("/toilets");
+      } else {
+        setError(response.error || "회원가입에 실패했습니다.");
+      }
+    } catch (err) {
+      setError("회원가입 중 오류가 발생했습니다.");
+      console.error("회원가입 오류:", err);
+    } finally {
       setIsLoading(false);
-      navigate("/login");
-    }, 1000);
+    }
   };
 
   return (
@@ -93,6 +113,12 @@ export default function RegisterPage() {
           
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="nickname">닉네임</Label>
                 <Input
