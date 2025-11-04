@@ -7,6 +7,7 @@ import ratingsRouter from './routes/ratings';
 import editRequestsRouter from './routes/editRequests';
 import authRouter from './routes/auth';
 import publicDataRouter from './routes/publicData';
+import publicToiletsRouter from './routes/public-toilets';
 
 // 환경변수 로드
 dotenv.config();
@@ -77,6 +78,9 @@ app.use('/api/auth', authRouter);
 
 // 공공데이터 동기화 API 라우트 연결
 app.use('/api/public-data', publicDataRouter);
+
+// 공공 화장실 실시간 조회 API 라우트 연결
+app.use('/api/public-toilets', publicToiletsRouter);
 
 // 서버 시작
 app.listen(PORT, () => {

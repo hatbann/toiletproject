@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 declare global {
   interface Window {
     naver: any;
+    handleReviewClick?: (toiletId: string) => void;
   }
 }
 
@@ -14,26 +15,41 @@ interface Toilet {
   longitude: number;
   type: "public" | "user";
   hasPassword: boolean;
+  passwordHint?: string;
   rating?: number;
+  ratingCount?: number;
+  creatorName?: string;
+  createdAt: string;
 }
 
 interface NaverMapProps {
   toilets: Toilet[];
   center?: { lat: number; lng: number };
   onToiletClick?: (toilet: Toilet) => void;
+  focusToiletId?: string | null; // 포커스할 화장실 ID
+  onReviewClick?: (toilet: Toilet) => void; // 리뷰 쓰기 버튼 클릭
 }
 
 const NaverMap: React.FC<NaverMapProps> = ({
   toilets,
   center = { lat: 37.5665, lng: 126.978 }, // 서울 시청 기본 좌표
   onToiletClick,
+  focusToiletId,
+  onReviewClick,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const infoWindowsRef = useRef<any[]>([]);
+  const toiletMarkersMap = useRef<Map<string, { marker: any; infoWindow: any; toilet: Toilet }>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // toilets prop 변경 감지
+  useEffect(() => {
+    console.log('🗺️ NaverMap - toilets prop 변경:', toilets?.length, '개');
+    console.log('📍 toilets 데이터:', toilets);
+  }, [toilets]);
 
   // 네이버 지도 API 로딩 확인
   useEffect(() => {
@@ -83,6 +99,11 @@ const NaverMap: React.FC<NaverMapProps> = ({
       // 지도 로드 완료 이벤트
       window.naver.maps.Event.addListener(map, "idle", () => {
         console.log("지도 로드 완료");
+      });
+
+      // 지도 클릭 시 모든 정보창 닫기
+      window.naver.maps.Event.addListener(map, "click", () => {
+        infoWindowsRef.current.forEach((iw) => iw.close());
       });
     } catch (err) {
       console.error("❌ 지도 초기화 실패:", err);
@@ -150,48 +171,68 @@ const NaverMap: React.FC<NaverMapProps> = ({
           // 정보창 내용
           const contentString = `
           <div style="
-            padding: 10px;
+            padding: 12px;
             font-size: 12px;
-            width: 220px;
+            width: 240px;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
           ">
-            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">
-              ${toilet.name}
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+              <div style="font-weight: bold; font-size: 14px;">
+                ${toilet.name}
+              </div>
+              <span style="
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 3px;
+                background: ${toilet.type === "public" ? "#ffebee" : "#e3f2fd"};
+                color: ${toilet.type === "public" ? "#c62828" : "#1565c0"};
+                white-space: nowrap;
+              ">
+                ${toilet.type === "public" ? "🏛️ 공공" : "👤 사용자"}
+              </span>
             </div>
-            <div style="color: #666; margin-bottom: 5px;">
+            <div style="color: #666; margin-bottom: 8px; font-size: 11px;">
               ${toilet.address}
             </div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <span style="
                 color: ${toilet.hasPassword ? "#ff4444" : "#44ff44"};
                 font-weight: 500;
+                font-size: 11px;
               ">
                 ${toilet.hasPassword ? "🔒 비밀번호 필요" : "🔓 자유이용"}
               </span>
               ${
                 toilet.rating
                   ? `
-                <span style="color: orange; font-weight: 500;">
+                <span style="color: orange; font-weight: 500; font-size: 11px;">
                   ⭐ ${toilet.rating.toFixed(1)}
                 </span>
               `
                   : ""
               }
             </div>
-            <div style="
-              margin-top: 8px;
-              padding: 4px 8px;
-              background: ${toilet.type === "public" ? "#ffebee" : "#e3f2fd"};
-              border-radius: 4px;
-              color: ${toilet.type === "public" ? "#c62828" : "#1565c0"};
-              font-size: 11px;
-              text-align: center;
-              font-weight: 500;
-            ">
-              ${toilet.type === "public" ? "공공 화장실" : "사용자 등록"}
-            </div>
+            <button
+              onclick="window.handleReviewClick('${toilet.id}')"
+              style="
+                width: 100%;
+                padding: 6px 12px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: transform 0.2s;
+              "
+              onmouseover="this.style.transform='scale(1.02)'"
+              onmouseout="this.style.transform='scale(1)'"
+            >
+              ✍️ 리뷰 쓰기
+            </button>
           </div>
         `;
 
@@ -204,6 +245,9 @@ const NaverMap: React.FC<NaverMapProps> = ({
           });
 
           infoWindowsRef.current.push(infoWindow);
+
+          // 마커 정보를 Map에 저장 (ID로 접근 가능하게)
+          toiletMarkersMap.current.set(toilet.id, { marker, infoWindow, toilet });
 
           // 마커 클릭 이벤트
           window.naver.maps.Event.addListener(marker, "click", () => {
@@ -235,6 +279,54 @@ const NaverMap: React.FC<NaverMapProps> = ({
       mapRef.current.setCenter(newCenter);
     }
   }, [center]);
+
+  // 특정 화장실에 포커스 (리스트에서 클릭시)
+  useEffect(() => {
+    if (!focusToiletId || !mapRef.current) return;
+
+    const markerData = toiletMarkersMap.current.get(focusToiletId);
+    if (!markerData) {
+      console.warn(`화장실 ID ${focusToiletId}에 해당하는 마커를 찾을 수 없습니다.`);
+      return;
+    }
+
+    const { marker, infoWindow } = markerData;
+
+    // 모든 정보창 닫기
+    infoWindowsRef.current.forEach((iw) => iw.close());
+
+    // 해당 마커로 지도 중심 이동 (부드럽게)
+    mapRef.current.panTo(marker.getPosition());
+
+    // 줌 레벨 조정 (너무 가깝지 않게)
+    setTimeout(() => {
+      if (mapRef.current.getZoom() < 16) {
+        mapRef.current.setZoom(16);
+      }
+    }, 300);
+
+    // 정보창 열기 (약간의 딜레이 후 - 지도 이동이 먼저 완료되도록)
+    setTimeout(() => {
+      infoWindow.open(mapRef.current, marker);
+    }, 400);
+
+    console.log(`✅ 화장실 포커스: ${markerData.toilet.name}`);
+  }, [focusToiletId]);
+
+  // 리뷰 쓰기 버튼 클릭 핸들러를 전역으로 등록
+  useEffect(() => {
+    window.handleReviewClick = (toiletId: string) => {
+      const markerData = toiletMarkersMap.current.get(toiletId);
+      if (markerData && onReviewClick) {
+        onReviewClick(markerData.toilet);
+      }
+    };
+
+    return () => {
+      // 컴포넌트 언마운트시 전역 핸들러 제거
+      delete window.handleReviewClick;
+    };
+  }, [onReviewClick]);
 
   // 현재 위치로 이동
   const moveToCurrentLocation = () => {

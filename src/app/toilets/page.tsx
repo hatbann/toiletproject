@@ -60,20 +60,58 @@ export default function MapPage() {
   const [ratingToilet, setRatingToilet] = useState<Toilet | null>(null);
   const [userRating, setUserRating] = useState(0);
   const [mapCenter, setMapCenter] = useState({ lat: 37.4979, lng: 127.0276 });
+  const [focusToiletId, setFocusToiletId] = useState<string | null>(null);
 
-  // 화장실 데이터 로드
+  // 화장실 데이터 로드 (DB + 공공 API 병합)
   useEffect(() => {
     const loadToilets = async () => {
       try {
         setLoading(true);
-        const response = await toiletAPI.getAll();
+        console.log('🚽 화장실 데이터 로딩 시작...');
 
-        if (response.success && response.data) {
-          setToilets(response.data.data);
-          setError(null);
-        } else {
-          setError(response.error || "화장실 데이터를 불러올 수 없습니다.");
+        // 1. DB에서 사용자 등록 화장실 가져오기
+        console.log('📦 DB 화장실 로딩...');
+        const userToiletsResponse = await toiletAPI.getAll();
+
+        // 2. 서울교통공사 API에서 공공 화장실 가져오기
+        console.log('🚇 공공 화장실 로딩...');
+        const publicToiletsResponse = await toiletAPI.getPublicToilets();
+
+        console.log('📡 DB 응답:', userToiletsResponse);
+        console.log('📡 공공 API 응답:', publicToiletsResponse);
+
+        // 3. 두 데이터 병합
+        let allToilets: Toilet[] = [];
+
+        // DB 화장실 추가 (type을 'user'로 설정)
+        if (userToiletsResponse.success && userToiletsResponse.data) {
+          const userToiletsData = Array.isArray(userToiletsResponse.data)
+            ? userToiletsResponse.data
+            : (userToiletsResponse.data as { count: number; data: Toilet[] }).data;
+
+          const userToilets = (userToiletsData || []).map(toilet => ({
+            ...toilet,
+            type: 'user' as const // 사용자 등록 화장실
+          }));
+
+          allToilets = [...userToilets];
+          console.log(`✅ DB 화장실: ${userToilets.length}개`);
         }
+
+        // 공공 화장실 추가 (type은 이미 'public'으로 설정됨)
+        if (publicToiletsResponse.success && publicToiletsResponse.data) {
+          const publicToiletsData = Array.isArray(publicToiletsResponse.data)
+            ? publicToiletsResponse.data
+            : (publicToiletsResponse.data as { count: number; data: Toilet[] }).data;
+
+          allToilets = [...allToilets, ...(publicToiletsData || [])];
+          console.log(`✅ 공공 화장실: ${publicToiletsData?.length || 0}개`);
+        }
+
+        console.log(`📊 총 화장실 개수: ${allToilets.length}개`);
+        setToilets(allToilets);
+        setError(null);
+
       } catch (err) {
         setError("네트워크 오류가 발생했습니다.");
         console.error("화장실 데이터 로드 실패:", err);
@@ -231,9 +269,13 @@ export default function MapPage() {
         <NaverMap
           toilets={toilets}
           center={mapCenter}
+          focusToiletId={focusToiletId}
           onToiletClick={(toilet) => {
             console.log("화장실 클릭:", toilet);
             // 필요시 화장실 상세 정보 모달 등을 표시할 수 있음
+          }}
+          onReviewClick={(toilet) => {
+            handleRatingClick(toilet);
           }}
         />
       </div>
@@ -282,7 +324,14 @@ export default function MapPage() {
               toilets.map((toilet) => (
                 <Card
                   key={toilet.id}
-                  className="hover:shadow-md transition-shadow py-0"
+                  className="hover:shadow-md transition-shadow py-0 cursor-pointer"
+                  onClick={(e) => {
+                    // 버튼 클릭은 카드 클릭 이벤트에서 제외
+                    if ((e.target as HTMLElement).closest('button')) {
+                      return;
+                    }
+                    setFocusToiletId(toilet.id);
+                  }}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">

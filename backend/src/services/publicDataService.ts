@@ -4,27 +4,30 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// 서울교통공사 화장실 API 응답 타입
+// 서울교통공사 화장실 API 응답 타입 (새 API)
 interface SeoulSubwayToiletResponse {
-  SearchPblToiletBySubwayiNfo: {
-    list_total_count: number;
-    RESULT: {
-      CODE: string;
-      MESSAGE: string;
+  response: {
+    header: {
+      resultCode: string;
+      resultMsg: string;
     };
-    row: Array<{
-      STATN_NM: string;        // 역명
-      ROUTE: string;           // 호선
-      ADRES: string;           // 주소
-      TOILET_DTTM: string;     // 화장실 위치정보
-      WKDAY_BEGIN_TIME: string; // 평일 시작시간
-      WKDAY_END_TIME: string;   // 평일 종료시간
-      SATDAY_BEGIN_TIME: string; // 토요일 시작시간
-      SATDAY_END_TIME: string;   // 토요일 종료시간
-      HDAY_BEGIN_TIME: string;   // 휴일 시작시간
-      HDAY_END_TIME: string;     // 휴일 종료시간
-      TROBLE_PHONE: string;      // 고장신고 전화번호
-    }>;
+    body: {
+      items: {
+        item: Array<{
+          fcNm?: string;        // 시설명
+          lnNm?: string;        // 호선명
+          statnNm?: string;     // 역명
+          fcRdnmadr?: string;   // 도로명주소
+          fcLnmadr?: string;    // 지번주소
+          fcLat?: string;       // 위도
+          fcLot?: string;       // 경도
+          fcPhoneNo?: string;   // 전화번호
+        }>;
+      };
+      numOfRows: number;
+      pageNo: number;
+      totalCount: number;
+    };
   };
 }
 
@@ -60,18 +63,24 @@ class PublicDataService {
         return null;
       }
 
-      const response = await axios.get('http://openapi.seoul.go.kr:8088', {
-        params: {
-          KEY: this.API_KEY,
-          TYPE: 'json',
-          SERVICE: 'SearchPblToiletBySubwayInfo',
-          START_INDEX: 1,
-          END_INDEX: 1000 // 최대 1000개까지 가져오기
-        },
-        timeout: 10000 // 10초 타임아웃
-      });
+      console.log('📡 서울교통공사 화장실 API 호출 시작...');
+
+      const response = await axios.get<SeoulSubwayToiletResponse>(
+        'https://apis.data.go.kr/B553766/facility/getFcRstrm',
+        {
+          params: {
+            serviceKey: this.API_KEY,
+            pageNo: 1,
+            numOfRows: 1000, // 최대 1000개까지 가져오기
+            _type: 'json'
+          },
+          timeout: 15000 // 15초 타임아웃
+        }
+      );
 
       console.log('✅ 서울교통공사 화장실 데이터 조회 성공');
+      console.log(`📊 응답 상태: ${response.data.response.header.resultCode} - ${response.data.response.header.resultMsg}`);
+
       return response.data;
 
     } catch (error) {
@@ -79,6 +88,7 @@ class PublicDataService {
       if (axios.isAxiosError(error)) {
         console.error('API 응답 오류:', error.response?.data);
         console.error('HTTP 상태:', error.response?.status);
+        console.error('요청 URL:', error.config?.url);
       }
       return null;
     }
@@ -135,12 +145,16 @@ class PublicDataService {
 
       const apiData = await this.fetchSeoulSubwayToilets();
 
-      if (!apiData || !apiData.SearchPblToiletBySubwayiNfo) {
+      if (!apiData || !apiData.response || apiData.response.header.resultCode !== '00') {
         console.error('❌ API 데이터를 가져올 수 없습니다.');
+        if (apiData?.response?.header) {
+          console.error(`   응답 코드: ${apiData.response.header.resultCode}`);
+          console.error(`   응답 메시지: ${apiData.response.header.resultMsg}`);
+        }
         return { success: false, saved: 0, errors: 1 };
       }
 
-      const { row: toilets = [] } = apiData.SearchPblToiletBySubwayiNfo;
+      const toilets = apiData.response.body.items?.item || [];
 
       if (toilets.length === 0) {
         console.log('ℹ️ 가져올 화장실 데이터가 없습니다.');
@@ -159,14 +173,20 @@ class PublicDataService {
 
         await Promise.all(batch.map(async (toilet) => {
           try {
-            const name = `${toilet.STATN_NM}역 ${toilet.ROUTE} 화장실`;
-            const address = toilet.ADRES || `서울시 ${toilet.STATN_NM}역`;
+            // 필수 데이터 확인
+            if (!toilet.fcNm || !toilet.statnNm) {
+              console.warn(`⚠️ 필수 데이터 누락: ${JSON.stringify(toilet)}`);
+              errorCount++;
+              return;
+            }
+
+            const name = toilet.fcNm;
+            const address = toilet.fcRdnmadr || toilet.fcLnmadr || `서울시 ${toilet.statnNm}역`;
 
             // 이미 존재하는지 확인 (이름과 주소로)
             const existingToilet = await prisma.toilet.findFirst({
               where: {
                 name: name,
-                address: address,
                 type: 'public'
               }
             });
@@ -176,25 +196,28 @@ class PublicDataService {
               return;
             }
 
-            // 주소를 좌표로 변환
-            const coordinates = await this.getCoordinatesFromAddress(address);
+            // 좌표 확인 (API에서 제공하는 경우)
+            let latitude: number;
+            let longitude: number;
 
-            if (!coordinates) {
-              console.warn(`⚠️ 좌표 변환 실패로 건너뜀: ${name}`);
-              errorCount++;
-              return;
-            }
+            if (toilet.fcLat && toilet.fcLot) {
+              // API에서 좌표를 제공하는 경우
+              latitude = parseFloat(toilet.fcLat);
+              longitude = parseFloat(toilet.fcLot);
+              console.log(`📍 API 제공 좌표 사용: ${name} (${latitude}, ${longitude})`);
+            } else {
+              // 좌표가 없는 경우 Geocoding 사용
+              const coordinates = await this.getCoordinatesFromAddress(address);
 
-            // 운영시간 정보 생성
-            let operatingHours = '';
-            if (toilet.WKDAY_BEGIN_TIME && toilet.WKDAY_END_TIME) {
-              operatingHours += `평일: ${toilet.WKDAY_BEGIN_TIME}-${toilet.WKDAY_END_TIME}`;
-            }
-            if (toilet.SATDAY_BEGIN_TIME && toilet.SATDAY_END_TIME) {
-              operatingHours += ` / 토요일: ${toilet.SATDAY_BEGIN_TIME}-${toilet.SATDAY_END_TIME}`;
-            }
-            if (toilet.HDAY_BEGIN_TIME && toilet.HDAY_END_TIME) {
-              operatingHours += ` / 휴일: ${toilet.HDAY_BEGIN_TIME}-${toilet.HDAY_END_TIME}`;
+              if (!coordinates) {
+                console.warn(`⚠️ 좌표 변환 실패로 건너뜀: ${name}`);
+                errorCount++;
+                return;
+              }
+
+              latitude = coordinates.lat;
+              longitude = coordinates.lng;
+              console.log(`🗺️ Geocoding 좌표 사용: ${name} (${latitude}, ${longitude})`);
             }
 
             // 데이터베이스에 저장
@@ -202,8 +225,8 @@ class PublicDataService {
               data: {
                 name: name,
                 address: address,
-                latitude: coordinates.lat,
-                longitude: coordinates.lng,
+                latitude: latitude,
+                longitude: longitude,
                 type: 'public',
                 hasPassword: false, // 공공화장실은 대부분 비밀번호 없음
                 isActive: true
@@ -215,7 +238,7 @@ class PublicDataService {
 
           } catch (error) {
             errorCount++;
-            console.error(`❌ 저장 실패 (${toilet.STATN_NM}역):`, error);
+            console.error(`❌ 저장 실패 (${toilet.fcNm || toilet.statnNm}):`, error);
           }
         }));
 

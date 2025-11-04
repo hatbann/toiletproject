@@ -79,8 +79,11 @@ export const apiRequest = async <T = any>(
 
 // 화장실 API 함수들
 export const toiletAPI = {
-  // 모든 화장실 목록 가져오기
+  // 모든 화장실 목록 가져오기 (DB에 저장된 사용자 등록 화장실)
   getAll: () => apiRequest<{ count: number; data: Toilet[] }>('/toilets'),
+
+  // 공공 화장실 목록 가져오기 (서울교통공사 API - 실시간)
+  getPublicToilets: () => apiRequest<{ count: number; data: Toilet[] }>('/public-toilets/metro'),
 
   // 특정 화장실 상세 정보 가져오기
   getById: (id: string) => apiRequest<{ data: Toilet }>(`/toilets/${id}`),
