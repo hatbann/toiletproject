@@ -1,5 +1,6 @@
 // API 통신을 위한 유틸리티 파일
-const API_BASE_URL = 'http://localhost:3001/api';
+// 현재 호스트의 IP를 사용 (모바일에서도 접근 가능)
+const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
 
 // API 응답 타입 정의
 export interface ApiResponse<T = any> {
@@ -83,7 +84,18 @@ export const toiletAPI = {
   getAll: () => apiRequest<{ count: number; data: Toilet[] }>('/toilets'),
 
   // 공공 화장실 목록 가져오기 (서울교통공사 API - 실시간)
-  getPublicToilets: () => apiRequest<{ count: number; data: Toilet[] }>('/public-toilets/metro'),
+  getPublicToilets: (stationName?: string) => {
+    const url = stationName
+      ? `/public-toilets/metro?station=${encodeURIComponent(stationName)}`
+      : '/public-toilets/metro';
+    return apiRequest<{ count: number; data: Toilet[] }>(url);
+  },
+
+  // 근처 역 찾기 (좌표 기반)
+  getNearbyStations: (lat: number, lng: number, limit = 3) =>
+    apiRequest<{ success: boolean; stations: Array<{ name: string; distance: number; lat: number; lng: number }> }>(
+      `/public-toilets/nearby-stations?lat=${lat}&lng=${lng}&limit=${limit}`
+    ),
 
   // 특정 화장실 상세 정보 가져오기
   getById: (id: string) => apiRequest<{ data: Toilet }>(`/toilets/${id}`),

@@ -4,8 +4,8 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// 서울교통공사 화장실 API 응답 타입 (새 API)
-interface SeoulSubwayToiletResponse {
+// 서울교통공사 화장실 API 응답 타입 (실제 API 응답 형식)
+export interface SeoulSubwayToiletResponse {
   response: {
     header: {
       resultCode: string;
@@ -14,14 +14,23 @@ interface SeoulSubwayToiletResponse {
     body: {
       items: {
         item: Array<{
-          fcNm?: string;        // 시설명
-          lnNm?: string;        // 호선명
-          statnNm?: string;     // 역명
-          fcRdnmadr?: string;   // 도로명주소
-          fcLnmadr?: string;    // 지번주소
-          fcLat?: string;       // 위도
-          fcLot?: string;       // 경도
-          fcPhoneNo?: string;   // 전화번호
+          fcltNo?: string;           // 시설번호
+          fcltNm?: string;           // 시설명
+          lineNm?: string;           // 호선명
+          stnCd?: string;            // 역코드
+          stnNm?: string;            // 역명
+          stnNo?: string;            // 역번호
+          crtrYmd?: string;          // 생성일자
+          mngNo?: string | null;     // 관리번호
+          gateInoutSe?: string;      // 게이트내외구분
+          grndUdgdSe?: string;       // 지상지하구분
+          vcntEntrcNo?: string;      // 인근출입구번호
+          dtlPstn?: string;          // 상세위치
+          rstrmInfo?: string;        // 화장실정보
+          stnFlr?: string;           // 역층
+          whlchrAcsPsbltyYn?: string; // 휠체어접근가능여부
+          fcLat?: string;            // 위도 (있을 수도 있음)
+          fcLot?: string;            // 경도 (있을 수도 있음)
         }>;
       };
       numOfRows: number;
@@ -55,25 +64,33 @@ class PublicDataService {
   private readonly NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID || '';
   private readonly NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET || '';
 
-  // 서울교통공사 화장실 데이터 가져오기
-  async fetchSeoulSubwayToilets(): Promise<SeoulSubwayToiletResponse | null> {
+  // 서울교통공사 화장실 데이터 가져오기 (역명으로 검색 가능)
+  async fetchSeoulSubwayToilets(stationName?: string): Promise<SeoulSubwayToiletResponse | null> {
     try {
       if (!this.API_KEY) {
         console.error('❌ 공공데이터 API 키가 설정되지 않았습니다.');
         return null;
       }
 
-      console.log('📡 서울교통공사 화장실 API 호출 시작...');
+      const searchInfo = stationName ? `역명: ${stationName}` : '전체';
+      console.log(`📡 서울교통공사 화장실 API 호출 시작... (${searchInfo})`);
+
+      const params: Record<string, string | number> = {
+        serviceKey: this.API_KEY,
+        pageNo: 1,
+        numOfRows: 1000, // 최대 1000개까지 가져오기
+        dataType: 'JSON'
+      };
+
+      // 역명이 제공된 경우 검색 조건 추가
+      if (stationName) {
+        params.stnNm = stationName;
+      }
 
       const response = await axios.get<SeoulSubwayToiletResponse>(
         'https://apis.data.go.kr/B553766/facility/getFcRstrm',
         {
-          params: {
-            serviceKey: this.API_KEY,
-            pageNo: 1,
-            numOfRows: 1000, // 최대 1000개까지 가져오기
-            _type: 'json'
-          },
+          params,
           timeout: 15000 // 15초 타임아웃
         }
       );
@@ -174,14 +191,14 @@ class PublicDataService {
         await Promise.all(batch.map(async (toilet) => {
           try {
             // 필수 데이터 확인
-            if (!toilet.fcNm || !toilet.statnNm) {
+            if (!toilet.fcltNm || !toilet.stnNm) {
               console.warn(`⚠️ 필수 데이터 누락: ${JSON.stringify(toilet)}`);
               errorCount++;
               return;
             }
 
-            const name = toilet.fcNm;
-            const address = toilet.fcRdnmadr || toilet.fcLnmadr || `서울시 ${toilet.statnNm}역`;
+            const name = toilet.fcltNm;
+            const address = toilet.dtlPstn || `서울시 ${toilet.stnNm}역`;
 
             // 이미 존재하는지 확인 (이름과 주소로)
             const existingToilet = await prisma.toilet.findFirst({
@@ -238,7 +255,7 @@ class PublicDataService {
 
           } catch (error) {
             errorCount++;
-            console.error(`❌ 저장 실패 (${toilet.fcNm || toilet.statnNm}):`, error);
+            console.error(`❌ 저장 실패 (${toilet.fcltNm || toilet.stnNm}):`, error);
           }
         }));
 

@@ -62,6 +62,26 @@ export default function MapPage() {
   const [mapCenter, setMapCenter] = useState({ lat: 37.4979, lng: 127.0276 });
   const [focusToiletId, setFocusToiletId] = useState<string | null>(null);
 
+  // 초기 로딩 시 현재 위치 가져오기
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          console.log(`📍 현재 위치: (${lat}, ${lng})`);
+          setMapCenter({ lat, lng });
+        },
+        (error) => {
+          console.warn("위치 정보를 가져올 수 없어 기본 위치(강남역)를 사용합니다:", error);
+          // 위치 정보를 가져올 수 없으면 기본값(강남역) 유지
+        }
+      );
+    } else {
+      console.warn("Geolocation을 지원하지 않는 브라우저입니다. 기본 위치(강남역)를 사용합니다.");
+    }
+  }, []); // 컴포넌트 마운트 시 한 번만 실행
+
   // 화장실 데이터 로드 (DB + 공공 API 병합)
   useEffect(() => {
     const loadToilets = async () => {
@@ -73,9 +93,21 @@ export default function MapPage() {
         console.log('📦 DB 화장실 로딩...');
         const userToiletsResponse = await toiletAPI.getAll();
 
-        // 2. 서울교통공사 API에서 공공 화장실 가져오기
-        console.log('🚇 공공 화장실 로딩...');
-        const publicToiletsResponse = await toiletAPI.getPublicToilets();
+        // 2. 현재 지도 중심 좌표 기반으로 근처 역 찾기
+        console.log(`📍 근처 역 찾기... (${mapCenter.lat}, ${mapCenter.lng})`);
+        const nearbyStationsResponse = await toiletAPI.getNearbyStations(mapCenter.lat, mapCenter.lng, 3);
+
+        // 3. 근처 역들의 화장실 가져오기
+        console.log('🚇 근처 역 화장실 로딩...');
+        let publicToiletsResponse;
+        if (nearbyStationsResponse.success && nearbyStationsResponse.data?.stations && nearbyStationsResponse.data.stations.length > 0) {
+          const nearestStation = nearbyStationsResponse.data.stations[0];
+          console.log(`✅ 가장 가까운 역: ${nearestStation.name} (${nearestStation.distance.toFixed(2)}km)`);
+          publicToiletsResponse = await toiletAPI.getPublicToilets(nearestStation.name);
+        } else {
+          console.log('⚠️ 근처 역을 찾을 수 없어 전체 화장실을 가져옵니다.');
+          publicToiletsResponse = await toiletAPI.getPublicToilets();
+        }
 
         console.log('📡 DB 응답:', userToiletsResponse);
         console.log('📡 공공 API 응답:', publicToiletsResponse);
@@ -109,7 +141,34 @@ export default function MapPage() {
         }
 
         console.log(`📊 총 화장실 개수: ${allToilets.length}개`);
-        setToilets(allToilets);
+
+        // 4. 거리순으로 정렬 (가까운 순)
+        const toiletsWithDistance = allToilets.map(toilet => {
+          const R = 6371; // 지구 반지름 (km)
+          const dLat = (toilet.latitude - mapCenter.lat) * Math.PI / 180;
+          const dLng = (toilet.longitude - mapCenter.lng) * Math.PI / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(mapCenter.lat * Math.PI / 180) * Math.cos(toilet.latitude * Math.PI / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distance = R * c;
+
+          return { ...toilet, distance };
+        });
+
+        // 거리순 정렬 후 상위 10개만 선택
+        const sortedToilets = toiletsWithDistance
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 10)
+          .map((item) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { distance, ...toilet } = item;
+            return toilet as Toilet;
+          });
+
+        console.log(`📍 가까운 화장실 10개만 표시`);
+        setToilets(sortedToilets);
         setError(null);
 
       } catch (err) {
@@ -121,7 +180,7 @@ export default function MapPage() {
     };
 
     loadToilets();
-  }, []);
+  }, [mapCenter]); // mapCenter가 변경될 때마다 근처 역의 화장실을 다시 로드
 
   const handleEditRequest = (toilet: Toilet) => {
     setSelectedToilet(toilet);

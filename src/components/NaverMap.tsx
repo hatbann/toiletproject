@@ -328,52 +328,6 @@ const NaverMap: React.FC<NaverMapProps> = ({
     };
   }, [onReviewClick]);
 
-  // 현재 위치로 이동
-  const moveToCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("현재 위치를 가져올 수 없습니다.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const moveLatLng = new window.naver.maps.LatLng(lat, lng);
-
-        if (mapRef.current) {
-          mapRef.current.setCenter(moveLatLng);
-
-          // 현재 위치 마커 추가
-          const currentMarker = new window.naver.maps.Marker({
-            position: moveLatLng,
-            map: mapRef.current,
-            icon: {
-              content: `
-                <div style="
-                  background-color: #4285f4;
-                  width: 20px;
-                  height: 20px;
-                  border-radius: 50%;
-                  border: 3px solid white;
-                  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                "></div>
-              `,
-              size: new window.naver.maps.Size(20, 20),
-              anchor: new window.naver.maps.Point(10, 10),
-            },
-          });
-
-          markersRef.current.push(currentMarker);
-        }
-      },
-      (error) => {
-        console.error("위치 정보를 가져올 수 없습니다:", error);
-        alert("위치 정보를 가져올 수 없습니다.");
-      }
-    );
-  };
-
   if (error) {
     return (
       <div className="w-full h-64 rounded-lg bg-red-50 flex items-center justify-center">
@@ -399,12 +353,6 @@ const NaverMap: React.FC<NaverMapProps> = ({
   return (
     <div className="relative">
       <div ref={mapContainer} className="w-full h-64 rounded-lg" />
-      <button
-        onClick={moveToCurrentLocation}
-        className="absolute top-2 right-2 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm shadow-md hover:bg-gray-50 transition-colors z-10"
-      >
-        📍 현재 위치
-      </button>
     </div>
   );
 };
