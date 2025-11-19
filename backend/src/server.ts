@@ -83,8 +83,9 @@ app.use('/api/public-data', publicDataRouter);
 app.use('/api/public-toilets', publicToiletsRouter);
 
 // 서버 시작
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 서버가 포트 ${PORT}에서 실행중입니다!`);
-  console.log(`📍 테스트 해보세요: http://localhost:${PORT}/api/hello`);
-  console.log(`📱 모바일에서 접속: http://[내_아이피]:${PORT}/api/hello`);
+const port = Number(PORT) || 3001;
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 서버가 포트 ${port}에서 실행중입니다!`);
+  console.log(`📍 테스트 해보세요: http://localhost:${port}/api/hello`);
+  console.log(`📱 모바일에서 접속: http://[내_아이피]:${port}/api/hello`);
 });
