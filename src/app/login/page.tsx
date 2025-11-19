@@ -33,8 +33,9 @@ export default function LoginPage() {
 
       if (response.success && response.data) {
         // 토큰과 사용자 정보 저장
-        authUtils.setToken(response.data.token);
-        authUtils.setUser(response.data.user);
+        const data = response.data as { user: any; token: string };
+        authUtils.setToken(data.token);
+        authUtils.setUser(data.user);
 
         alert("로그인 성공!");
         navigate("/toilets");
