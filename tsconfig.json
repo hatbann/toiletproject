@@ -4,13 +4,15 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "jsx": "react-jsx", // ✅ 이거 추가!
-    "baseUrl": ".", // ✅ import alias와 함께 사용
+    "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     },
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
-  }
+  },
+  "include": ["src"],
+  "exclude": ["backend", "node_modules", "dist"]
 }
