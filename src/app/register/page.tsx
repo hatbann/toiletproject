@@ -74,9 +74,8 @@ export default function RegisterPage() {
 
       if (response.success && response.data) {
         // 회원가입 성공 시 자동 로그인
-        const data = response.data as any;
-        authUtils.setToken(data.data.token);
-        authUtils.setUser(data.data.user);
+        authUtils.setToken(response.data.token);
+        authUtils.setUser(response.data.user);
 
         alert("회원가입이 완료되었습니다!");
         navigate("/toilets");
