@@ -203,14 +203,14 @@ export const editRequestAPI = {
 export const authAPI = {
   // 회원가입
   register: (email: string, password: string, name: string) =>
-    apiRequest<{ data: { user: User; token: string } }>('/auth/register', {
+    apiRequest<{ user: User; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
     }),
 
   // 로그인
   login: (email: string, password: string) =>
-    apiRequest<{ data: { user: User; token: string } }>('/auth/login', {
+    apiRequest<{ user: User; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
