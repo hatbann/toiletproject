@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -7,20 +8,57 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, LogOut } from "lucide-react";
+import { authUtils } from "@/lib/api";
 
 export default function HomePage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const authenticated = authUtils.isAuthenticated();
+    setIsAuthenticated(authenticated);
+
+    if (authenticated) {
+      const user = authUtils.getUser();
+      setUserName(user?.name || "사용자");
+    }
+  }, []);
+
+  const handleLogout = () => {
+    authUtils.logout();
+    setIsAuthenticated(false);
+    setUserName("");
+    alert("로그아웃되었습니다.");
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="flex justify-end mb-4">
-            <Link to="/login">
-              <Button variant="outline" size="sm">
-                로그인
-              </Button>
-            </Link>
+          <div className="flex justify-end mb-4 gap-2">
+            {isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border">
+                  <span className="text-sm font-medium text-gray-700">
+                    {userName}님
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-1" />
+                  로그아웃
+                </Button>
+              </>
+            ) : (
+              <Link to="/login">
+                <Button variant="outline" size="sm">
+                  로그인
+                </Button>
+              </Link>
+            )}
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             🚽 화장실 찾기

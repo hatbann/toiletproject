@@ -336,6 +336,10 @@ export default function MapPage() {
           onReviewClick={(toilet) => {
             handleRatingClick(toilet);
           }}
+          onCenterChanged={(newCenter) => {
+            console.log("🗺️ 지도 중심 변경됨:", newCenter);
+            setMapCenter(newCenter);
+          }}
         />
       </div>
 

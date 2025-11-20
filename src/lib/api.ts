@@ -1,6 +1,6 @@
 // API 통신을 위한 유틸리티 파일
 // 현재 호스트의 IP를 사용 (모바일에서도 접근 가능)
-const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
+const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3002/api`;
 
 // API 응답 타입 정의
 export interface ApiResponse<T = any> {

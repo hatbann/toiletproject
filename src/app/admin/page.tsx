@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   TabsTrigger,
 } from "../../components/ui/tabs";
 import { ArrowLeft, Check, X, Eye, Lock, Unlock } from "lucide-react";
+import { authUtils } from "@/lib/api";
 
 interface PendingToilet {
   id: string;
@@ -26,51 +27,101 @@ interface PendingToilet {
   hasPassword: boolean;
   passwordHint?: string;
   photos: string[];
-  submittedAt: string;
+  createdAt: string;
   submittedBy: string;
 }
 
-const mockPendingToilets: PendingToilet[] = [
-  {
-    id: "1",
-    name: "카페베네 신촌점",
-    address: "서울시 서대문구 신촌로 123",
-    description: "2층에 위치, 카페 이용객만 사용 가능",
-    hasPassword: true,
-    passwordHint: "카운터에서 문의",
-    photos: ["/placeholder.svg?height=200&width=300"],
-    submittedAt: "2024-01-15 14:30",
-    submittedBy: "user123",
-  },
-  {
-    id: "2",
-    name: "홍대 공원 화장실",
-    address: "서울시 마포구 홍익로 456",
-    description: "24시간 이용 가능한 공원 화장실",
-    hasPassword: false,
-    photos: ["/placeholder.svg?height=200&width=300"],
-    submittedAt: "2024-01-15 10:15",
-    submittedBy: "user456",
-  },
-];
-
 export default function AdminPage() {
-  const [pendingToilets, setPendingToilets] =
-    useState<PendingToilet[]>(mockPendingToilets);
-  const [selectedToilet, setSelectedToilet] = useState<PendingToilet | null>(
-    null
-  );
+  const [pendingToilets, setPendingToilets] = useState<PendingToilet[]>([]);
+  const [selectedToilet, setSelectedToilet] = useState<PendingToilet | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleApprove = (id: string) => {
-    setPendingToilets((prev) => prev.filter((toilet) => toilet.id !== id));
-    setSelectedToilet(null);
-    alert("화장실이 승인되었습니다.");
+  // 승인 대기 목록 가져오기
+  const fetchPendingToilets = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `http://${window.location.hostname}:3002/api/toilets/admin/pending`
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setPendingToilets(result.data);
+      } else {
+        console.error("승인 대기 목록 조회 실패:", result.message);
+      }
+    } catch (error) {
+      console.error("승인 대기 목록 조회 오류:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleReject = (id: string) => {
-    setPendingToilets((prev) => prev.filter((toilet) => toilet.id !== id));
-    setSelectedToilet(null);
-    alert("화장실 등록이 거부되었습니다.");
+  useEffect(() => {
+    fetchPendingToilets();
+  }, []);
+
+  const handleApprove = async (id: string) => {
+    if (!confirm("이 화장실을 승인하시겠습니까?")) return;
+
+    try {
+      const token = authUtils.getToken();
+      const response = await fetch(
+        `http://${window.location.hostname}:3002/api/toilets/admin/${id}/approve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert("화장실이 승인되었습니다.");
+        setPendingToilets((prev) => prev.filter((toilet) => toilet.id !== id));
+        setSelectedToilet(null);
+      } else {
+        alert(result.message || "승인 처리에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("승인 오류:", error);
+      alert("승인 처리 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!confirm("이 화장실 등록을 거부하시겠습니까?")) return;
+
+    try {
+      const token = authUtils.getToken();
+      const response = await fetch(
+        `http://${window.location.hostname}:3002/api/toilets/admin/${id}/reject`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert("화장실 등록이 거부되었습니다.");
+        setPendingToilets((prev) => prev.filter((toilet) => toilet.id !== id));
+        setSelectedToilet(null);
+      } else {
+        alert(result.message || "거부 처리에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("거부 오류:", error);
+      alert("거부 처리 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -144,7 +195,7 @@ export default function AdminPage() {
                           )}
                         </div>
                         <div className="text-right text-xs text-gray-500">
-                          <p>{toilet.submittedAt}</p>
+                          <p>{new Date(toilet.createdAt).toLocaleString('ko-KR')}</p>
                           <p>by {toilet.submittedBy}</p>
                         </div>
                       </div>

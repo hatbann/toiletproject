@@ -28,6 +28,7 @@ interface NaverMapProps {
   onToiletClick?: (toilet: Toilet) => void;
   focusToiletId?: string | null; // 포커스할 화장실 ID
   onReviewClick?: (toilet: Toilet) => void; // 리뷰 쓰기 버튼 클릭
+  onCenterChanged?: (center: { lat: number; lng: number }) => void; // 지도 중심 변경 시
 }
 
 const NaverMap: React.FC<NaverMapProps> = ({
@@ -36,6 +37,7 @@ const NaverMap: React.FC<NaverMapProps> = ({
   onToiletClick,
   focusToiletId,
   onReviewClick,
+  onCenterChanged,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -104,6 +106,16 @@ const NaverMap: React.FC<NaverMapProps> = ({
       // 지도 클릭 시 모든 정보창 닫기
       window.naver.maps.Event.addListener(map, "click", () => {
         infoWindowsRef.current.forEach((iw) => iw.close());
+      });
+
+      // 지도 드래그 종료 시 중심 좌표 변경 알림
+      window.naver.maps.Event.addListener(map, "dragend", () => {
+        const newCenter = map.getCenter();
+        console.log("🗺️ 지도 중심 변경:", { lat: newCenter.lat(), lng: newCenter.lng() });
+
+        if (onCenterChanged) {
+          onCenterChanged({ lat: newCenter.lat(), lng: newCenter.lng() });
+        }
       });
     } catch (err) {
       console.error("❌ 지도 초기화 실패:", err);

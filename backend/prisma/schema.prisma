@@ -33,17 +33,19 @@ model User {
 
 // 화장실 모델
 model Toilet {
-  id          String   @id @default(cuid())
-  name        String
-  address     String
-  latitude    Float    // 위도
-  longitude   Float    // 경도
-  type        String   // "public" 또는 "user"
-  hasPassword Boolean  @default(false)
-  passwordHint String? // 비밀번호 힌트
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  address      String
+  description  String?  // 상세 설명
+  latitude     Float?   // 위도 (검색으로 찾을 수 있도록 nullable)
+  longitude    Float?   // 경도
+  type         String   // "public" 또는 "user"
+  hasPassword  Boolean  @default(false)
+  passwordHint String?  // 비밀번호 힌트
+  isActive     Boolean  @default(true)
+  status       String   @default("pending") // "pending", "approved", "rejected"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // 관계
   creatorId    String?

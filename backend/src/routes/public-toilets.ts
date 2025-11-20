@@ -2,8 +2,52 @@
 import { Router } from 'express';
 import publicDataService from '../services/publicDataService';
 import { seoulMetroStations } from '../data/seoulMetroStations';
+import axios from 'axios';
 
 const router = Router();
+
+// 네이버 주소 검색 API (CORS 우회용)
+router.get('/search-address', async (req, res) => {
+  try {
+    const query = req.query.query as string;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: '검색어를 입력해주세요.'
+      });
+    }
+
+    console.log(`🔍 주소 검색: ${query}`);
+
+    const response = await axios.get('https://openapi.naver.com/v1/search/local.json', {
+      params: {
+        query: query,
+        display: 10
+      },
+      headers: {
+        'X-Naver-Client-Id': process.env.NAVER_CLIENT_ID || '',
+        'X-Naver-Client-Secret': process.env.NAVER_CLIENT_SECRET || ''
+      },
+      timeout: 5000 // 5초 타임아웃
+    });
+
+    console.log(`✅ 검색 결과: ${response.data.items?.length || 0}개`);
+
+    res.json({
+      success: true,
+      data: response.data.items || []
+    });
+
+  } catch (error) {
+    console.error('❌ 주소 검색 실패:', error);
+    res.status(500).json({
+      success: false,
+      message: '주소 검색 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    });
+  }
+});
 
 // 좌표 기반 가까운 역 찾기 (최대 3개)
 router.get('/nearby-stations', async (req, res) => {

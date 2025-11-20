@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
-// 모든 화장실 목록 가져오기
+// 모든 화장실 목록 가져오기 (승인된 화장실만)
 router.get('/', async (req, res) => {
   try {
     console.log('🚽 화장실 목록 요청을 받았습니다!');
@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
     const toilets = await prisma.toilet.findMany({
       where: {
         isActive: true, // 활성화된 화장실만
+        status: 'approved', // 승인된 화장실만
       },
       include: {
         ratings: true, // 별점 정보도 함께 가져오기
@@ -131,87 +132,61 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 새 화장실 등록하기
+// 새 화장실 등록하기 (승인 대기 상태로)
 router.post('/', async (req, res) => {
   try {
-    const { name, address, latitude, longitude, type, hasPassword, passwordHint, creatorId } = req.body;
+    const { name, address, description, latitude, longitude, hasPassword, passwordHint, creatorId } = req.body;
 
     console.log('📝 새 화장실 등록 요청:', { name, address });
 
     // 필수 필드 검증
-    if (!name || !address || !latitude || !longitude || !type) {
+    if (!name || !address) {
       return res.status(400).json({
         success: false,
-        message: '필수 정보가 누락되었습니다. (이름, 주소, 위도, 경도, 타입 필요)'
+        message: '필수 정보가 누락되었습니다. (이름, 주소 필요)'
       });
     }
 
-    // 위도, 경도 유효성 검사
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    // 위도, 경도 유효성 검사 (선택사항)
+    if (latitude && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
       return res.status(400).json({
         success: false,
         message: '올바르지 않은 좌표입니다.'
       });
     }
 
-    // 같은 좌표에 이미 화장실이 있는지 확인 (반경 50m 이내)
-    const existingToilet = await prisma.toilet.findFirst({
-      where: {
-        AND: [
-          { latitude: { gte: latitude - 0.0005 } }, // 약 50m 반경
-          { latitude: { lte: latitude + 0.0005 } },
-          { longitude: { gte: longitude - 0.0005 } },
-          { longitude: { lte: longitude + 0.0005 } },
-          { isActive: true }
-        ]
-      }
-    });
-
-    if (existingToilet) {
-      return res.status(400).json({
-        success: false,
-        message: '이미 해당 위치 근처에 등록된 화장실이 있습니다.',
-        existingToilet: {
-          id: existingToilet.id,
-          name: existingToilet.name,
-          address: existingToilet.address
-        }
-      });
-    }
-
-    // 새 화장실 생성
+    // 새 화장실 생성 (승인 대기 상태로)
     const newToilet = await prisma.toilet.create({
       data: {
         name: name.trim(),
         address: address.trim(),
-        latitude: parseFloat(latitude.toString()),
-        longitude: parseFloat(longitude.toString()),
-        type,
+        description: description?.trim() || null,
+        latitude: latitude ? parseFloat(latitude.toString()) : null,
+        longitude: longitude ? parseFloat(longitude.toString()) : null,
+        type: 'user', // 사용자 등록은 항상 user 타입
         hasPassword: hasPassword || false,
         passwordHint: passwordHint?.trim() || null,
+        status: 'pending', // 승인 대기 상태
         creatorId: creatorId || null,
       },
       include: {
         creator: {
-          select: { name: true }
+          select: { name: true, email: true }
         }
       }
     });
 
-    console.log('✅ 새 화장실 생성 완료:', newToilet.name);
+    console.log('✅ 새 화장실 등록 요청 완료 (승인 대기):', newToilet.name);
 
     res.status(201).json({
       success: true,
-      message: '화장실이 성공적으로 등록되었습니다!',
+      message: '화장실 등록 요청이 제출되었습니다. 관리자 승인 후 지도에 표시됩니다.',
       data: {
         id: newToilet.id,
         name: newToilet.name,
         address: newToilet.address,
-        lat: newToilet.latitude,
-        lng: newToilet.longitude,
-        type: newToilet.type,
-        hasPassword: newToilet.hasPassword,
-        passwordHint: newToilet.passwordHint,
+        description: newToilet.description,
+        status: newToilet.status,
         creatorName: newToilet.creator?.name,
         createdAt: newToilet.createdAt,
       }
@@ -331,6 +306,166 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '화장실 삭제 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    });
+  }
+});
+
+// ========== 관리자 API ==========
+
+// 승인 대기 중인 화장실 목록 조회
+router.get('/admin/pending', async (req, res) => {
+  try {
+    console.log('📋 승인 대기 중인 화장실 목록 요청');
+
+    const pendingToilets = await prisma.toilet.findMany({
+      where: {
+        status: 'pending',
+        isActive: true,
+      },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        },
+        images: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      }
+    });
+
+    console.log(`📊 ${pendingToilets.length}개의 승인 대기 화장실 발견`);
+
+    res.json({
+      success: true,
+      count: pendingToilets.length,
+      data: pendingToilets.map(toilet => ({
+        id: toilet.id,
+        name: toilet.name,
+        address: toilet.address,
+        description: toilet.description,
+        hasPassword: toilet.hasPassword,
+        passwordHint: toilet.passwordHint,
+        photos: toilet.images.map(img => img.url),
+        createdAt: toilet.createdAt,
+        submittedBy: toilet.creator?.name || '알 수 없음',
+        submitterEmail: toilet.creator?.email,
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ 승인 대기 목록 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '승인 대기 목록 조회 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    });
+  }
+});
+
+// 화장실 승인
+router.post('/admin/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body; // 관리자가 좌표를 설정할 수 있음
+
+    console.log(`✅ 화장실 승인 요청: ID ${id}`);
+
+    const toilet = await prisma.toilet.findUnique({
+      where: { id }
+    });
+
+    if (!toilet) {
+      return res.status(404).json({
+        success: false,
+        message: '해당 화장실을 찾을 수 없습니다.'
+      });
+    }
+
+    if (toilet.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: '이미 처리된 요청입니다.'
+      });
+    }
+
+    // 화장실 승인
+    const approvedToilet = await prisma.toilet.update({
+      where: { id },
+      data: {
+        status: 'approved',
+        latitude: latitude || toilet.latitude,
+        longitude: longitude || toilet.longitude,
+      }
+    });
+
+    console.log('✅ 화장실 승인 완료:', approvedToilet.name);
+
+    res.json({
+      success: true,
+      message: '화장실이 승인되었습니다.',
+      data: approvedToilet
+    });
+
+  } catch (error) {
+    console.error('❌ 화장실 승인 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '화장실 승인 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    });
+  }
+});
+
+// 화장실 거부
+router.post('/admin/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`❌ 화장실 거부 요청: ID ${id}`);
+
+    const toilet = await prisma.toilet.findUnique({
+      where: { id }
+    });
+
+    if (!toilet) {
+      return res.status(404).json({
+        success: false,
+        message: '해당 화장실을 찾을 수 없습니다.'
+      });
+    }
+
+    if (toilet.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: '이미 처리된 요청입니다.'
+      });
+    }
+
+    // 화장실 거부
+    const rejectedToilet = await prisma.toilet.update({
+      where: { id },
+      data: {
+        status: 'rejected',
+      }
+    });
+
+    console.log('✅ 화장실 거부 완료:', rejectedToilet.name);
+
+    res.json({
+      success: true,
+      message: '화장실 등록이 거부되었습니다.',
+      data: rejectedToilet
+    });
+
+  } catch (error) {
+    console.error('❌ 화장실 거부 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '화장실 거부 중 오류가 발생했습니다.',
       error: error instanceof Error ? error.message : '알 수 없는 오류'
     });
   }

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Camera, MapPin, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { authUtils } from "@/lib/api";
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -20,15 +23,83 @@ export default function RegisterPage() {
     hasPassword: false,
     passwordHint: "",
     photos: [] as File[],
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
+  const [showAddressSearch, setShowAddressSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 로그인 여부 확인
+  useEffect(() => {
+    const authenticated = authUtils.isAuthenticated();
+    if (!authenticated) {
+      alert("로그인이 필요한 서비스입니다.");
+      navigate("/login");
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [navigate]);
+
+  // 로그인하지 않은 경우 아무것도 렌더링하지 않음
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 서버로 데이터 전송
-    console.log("등록 데이터:", formData);
-    alert(
-      "화장실 등록 요청이 제출되었습니다. 관리자 승인 후 지도에 표시됩니다."
-    );
+
+    // 기본 유효성 검사
+    if (!formData.name.trim() || !formData.address.trim()) {
+      alert("화장실 이름과 주소는 필수 입력 항목입니다.");
+      return;
+    }
+
+    try {
+      const user = authUtils.getUser();
+      const token = authUtils.getToken();
+
+      if (!user || !token) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+        return;
+      }
+
+      // API 요청
+      const response = await fetch(
+        `http://${window.location.hostname}:3002/api/toilets`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            address: formData.address,
+            description: formData.description,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            hasPassword: formData.hasPassword,
+            passwordHint: formData.passwordHint,
+            creatorId: user.id,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(result.message || "화장실 등록 요청이 제출되었습니다. 관리자 승인 후 지도에 표시됩니다.");
+        navigate("/");
+      } else {
+        alert(result.message || "화장실 등록에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("화장실 등록 오류:", error);
+      alert("화장실 등록 중 오류가 발생했습니다.");
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,61 +112,55 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("이 브라우저는 위치 서비스를 지원하지 않습니다.");
+  const handleAddressSearch = async () => {
+    if (!searchQuery.trim()) {
+      alert("검색어를 입력해주세요.");
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
+    setIsSearching(true);
+    try {
+      // 백엔드 프록시를 통해 검색 (CORS 우회)
+      const response = await fetch(
+        `http://${window.location.hostname}:3002/api/public-toilets/search-address?query=${encodeURIComponent(searchQuery)}`
+      );
 
-        // 네이버 Geocoding API를 사용하여 주소 변환 (역지오코딩)
-        try {
-          const response = await fetch(
-            `https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=${longitude},${latitude}&output=json&orders=roadaddr`,
-            {
-              headers: {
-                'X-NCP-APIGW-API-KEY-ID': import.meta.env.VITE_NAVER_MAP_CLIENT_ID || '',
-                'X-NCP-APIGW-API-KEY': import.meta.env.VITE_NAVER_MAP_CLIENT_SECRET || ''
-              }
-            }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-              const address = data.results[0].region.area1.name + ' ' +
-                             data.results[0].region.area2.name + ' ' +
-                             data.results[0].region.area3.name + ' ' +
-                             (data.results[0].land?.name || '');
-              setFormData((prev) => ({ ...prev, address: address.trim() }));
-            } else {
-              setFormData((prev) => ({
-                ...prev,
-                address: `위도: ${latitude}, 경도: ${longitude}`
-              }));
-            }
-          } else {
-            setFormData((prev) => ({
-              ...prev,
-              address: `위도: ${latitude}, 경도: ${longitude}`
-            }));
-          }
-        } catch (error) {
-          console.error('주소 변환 실패:', error);
-          setFormData((prev) => ({
-            ...prev,
-            address: `위도: ${latitude}, 경도: ${longitude}`
-          }));
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && result.data.length > 0) {
+          setSearchResults(result.data);
+        } else {
+          alert("검색 결과가 없습니다.");
+          setSearchResults([]);
         }
-      },
-      (error) => {
-        console.error('위치 가져오기 실패:', error);
-        alert("위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.");
+      } else {
+        alert("주소 검색에 실패했습니다.");
       }
-    );
+    } catch (error) {
+      console.error('주소 검색 실패:', error);
+      alert("주소 검색 중 오류가 발생했습니다.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectAddress = (result: any) => {
+    // 네이버 API는 KATEC 좌표계로 반환 (mapx, mapy)
+    // WGS84로 변환: longitude = mapx / 10000000, latitude = mapy / 10000000
+    const longitude = result.mapx ? parseFloat(result.mapx) / 10000000 : null;
+    const latitude = result.mapy ? parseFloat(result.mapy) / 10000000 : null;
+
+    console.log('선택한 주소:', result.title, '좌표:', { latitude, longitude });
+
+    setFormData((prev) => ({
+      ...prev,
+      address: result.roadAddress || result.address,
+      latitude: latitude,
+      longitude: longitude,
+    }));
+    setShowAddressSearch(false);
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   return (
@@ -162,14 +227,19 @@ export default function RegisterPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleGetCurrentLocation}
-                      title="현재 위치 가져오기"
+                      onClick={() => setShowAddressSearch(true)}
+                      title="주소 검색"
                     >
                       <MapPin className="w-4 h-4" />
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    지도 버튼을 누르면 현재 위치의 주소를 자동으로 입력합니다
+                    지도 버튼을 누르면 주소를 검색할 수 있습니다
+                    {formData.latitude && formData.longitude && (
+                      <span className="text-green-600 ml-2">
+                        ✓ 위치 정보 저장됨 ({formData.latitude.toFixed(4)}, {formData.longitude.toFixed(4)})
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -317,6 +387,72 @@ export default function RegisterPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 주소 검색 모달 */}
+      {showAddressSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col bg-white">
+            <CardHeader className="bg-white">
+              <CardTitle>주소 검색</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto bg-white">
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="주소를 입력하세요 (예: 강남역)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleAddressSearch();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddressSearch}
+                    disabled={isSearching}
+                  >
+                    {isSearching ? "검색 중..." : "검색"}
+                  </Button>
+                </div>
+
+                {searchResults.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">
+                      {searchResults.length}개의 결과
+                    </p>
+                    {searchResults.map((result, index) => (
+                      <div
+                        key={index}
+                        className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                        onClick={() => handleSelectAddress(result)}
+                      >
+                        <p className="font-medium" dangerouslySetInnerHTML={{ __html: result.title }} />
+                        <p className="text-sm text-gray-600">{result.roadAddress || result.address}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+            <div className="p-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setShowAddressSearch(false);
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+              >
+                닫기
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
