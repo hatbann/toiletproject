@@ -217,11 +217,15 @@ export default function AdminPage() {
                       </div>
 
                       {/* 액션 버튼 */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mt-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setSelectedToilet(toilet)}
+                          className="touch-manipulation min-h-[44px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedToilet(toilet);
+                          }}
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           상세보기
@@ -229,7 +233,11 @@ export default function AdminPage() {
                         <Button
                           size="sm"
                           variant="default"
-                          onClick={() => handleApprove(toilet.id)}
+                          className="touch-manipulation min-h-[44px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleApprove(toilet.id);
+                          }}
                         >
                           <Check className="w-4 h-4 mr-1" />
                           승인
@@ -237,7 +245,11 @@ export default function AdminPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleReject(toilet.id)}
+                          className="touch-manipulation min-h-[44px]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReject(toilet.id);
+                          }}
                         >
                           <X className="w-4 h-4 mr-1" />
                           거부
@@ -331,16 +343,22 @@ export default function AdminPage() {
 
               <div className="flex gap-2 pt-4">
                 <Button
-                  className="flex-1"
-                  onClick={() => handleApprove(selectedToilet.id)}
+                  className="flex-1 touch-manipulation min-h-[48px]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApprove(selectedToilet.id);
+                  }}
                 >
                   <Check className="w-4 h-4 mr-1" />
                   승인
                 </Button>
                 <Button
                   variant="destructive"
-                  className="flex-1"
-                  onClick={() => handleReject(selectedToilet.id)}
+                  className="flex-1 touch-manipulation min-h-[48px]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReject(selectedToilet.id);
+                  }}
                 >
                   <X className="w-4 h-4 mr-1" />
                   거부
