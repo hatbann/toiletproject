@@ -68,7 +68,7 @@ export default function RegisterPage() {
 
       // API 요청
       const response = await fetch(
-        `http://${window.location.hostname}:3002/api/toilets`,
+        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets`,
         {
           method: "POST",
           headers: {
@@ -122,7 +122,7 @@ export default function RegisterPage() {
     try {
       // 백엔드 프록시를 통해 검색 (CORS 우회)
       const response = await fetch(
-        `http://${window.location.hostname}:3002/api/public-toilets/search-address?query=${encodeURIComponent(searchQuery)}`
+        `${window.location.protocol}//${window.location.hostname}:3002/api/public-toilets/search-address?query=${encodeURIComponent(searchQuery)}`
       );
 
       if (response.ok) {

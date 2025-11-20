@@ -42,7 +42,7 @@ export default function AdminPage() {
     try {
       setIsLoading(true);
       const response = await fetch(
-        `http://${window.location.hostname}:3002/api/toilets/admin/pending`
+        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/pending`
       );
       const result = await response.json();
 
@@ -68,7 +68,7 @@ export default function AdminPage() {
     try {
       const token = authUtils.getToken();
       const response = await fetch(
-        `http://${window.location.hostname}:3002/api/toilets/admin/${id}/approve`,
+        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/${id}/approve`,
         {
           method: "POST",
           headers: {
@@ -99,7 +99,7 @@ export default function AdminPage() {
     try {
       const token = authUtils.getToken();
       const response = await fetch(
-        `http://${window.location.hostname}:3002/api/toilets/admin/${id}/reject`,
+        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/${id}/reject`,
         {
           method: "POST",
           headers: {
