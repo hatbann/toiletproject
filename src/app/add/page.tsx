@@ -41,6 +41,63 @@ export default function RegisterPage() {
     }
   };
 
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("이 브라우저는 위치 서비스를 지원하지 않습니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        // 네이버 Geocoding API를 사용하여 주소 변환 (역지오코딩)
+        try {
+          const response = await fetch(
+            `https://naveropenapi.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=${longitude},${latitude}&output=json&orders=roadaddr`,
+            {
+              headers: {
+                'X-NCP-APIGW-API-KEY-ID': import.meta.env.VITE_NAVER_MAP_CLIENT_ID || '',
+                'X-NCP-APIGW-API-KEY': import.meta.env.VITE_NAVER_MAP_CLIENT_SECRET || ''
+              }
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              const address = data.results[0].region.area1.name + ' ' +
+                             data.results[0].region.area2.name + ' ' +
+                             data.results[0].region.area3.name + ' ' +
+                             (data.results[0].land?.name || '');
+              setFormData((prev) => ({ ...prev, address: address.trim() }));
+            } else {
+              setFormData((prev) => ({
+                ...prev,
+                address: `위도: ${latitude}, 경도: ${longitude}`
+              }));
+            }
+          } else {
+            setFormData((prev) => ({
+              ...prev,
+              address: `위도: ${latitude}, 경도: ${longitude}`
+            }));
+          }
+        } catch (error) {
+          console.error('주소 변환 실패:', error);
+          setFormData((prev) => ({
+            ...prev,
+            address: `위도: ${latitude}, 경도: ${longitude}`
+          }));
+        }
+      },
+      (error) => {
+        console.error('위치 가져오기 실패:', error);
+        alert("위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.");
+      }
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -101,12 +158,18 @@ export default function RegisterPage() {
                       }
                       required
                     />
-                    <Button type="button" variant="outline" size="sm">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGetCurrentLocation}
+                      title="현재 위치 가져오기"
+                    >
                       <MapPin className="w-4 h-4" />
                     </Button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    지도에서 정확한 위치를 선택할 수 있습니다
+                    지도 버튼을 누르면 현재 위치의 주소를 자동으로 입력합니다
                   </p>
                 </div>
 
