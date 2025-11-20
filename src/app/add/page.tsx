@@ -67,8 +67,9 @@ export default function RegisterPage() {
       }
 
       // API 요청
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
-        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets`,
+        `${API_BASE_URL}/toilets`,
         {
           method: "POST",
           headers: {
@@ -121,8 +122,9 @@ export default function RegisterPage() {
     setIsSearching(true);
     try {
       // 백엔드 프록시를 통해 검색 (CORS 우회)
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
-        `${window.location.protocol}//${window.location.hostname}:3002/api/public-toilets/search-address?query=${encodeURIComponent(searchQuery)}`
+        `${API_BASE_URL}/public-toilets/search-address?query=${encodeURIComponent(searchQuery)}`
       );
 
       if (response.ok) {

@@ -41,8 +41,9 @@ export default function AdminPage() {
   const fetchPendingToilets = async () => {
     try {
       setIsLoading(true);
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
-        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/pending`
+        `${API_BASE_URL}/toilets/admin/pending`
       );
       const result = await response.json();
 
@@ -67,8 +68,9 @@ export default function AdminPage() {
 
     try {
       const token = authUtils.getToken();
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
-        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/${id}/approve`,
+        `${API_BASE_URL}/toilets/admin/${id}/approve`,
         {
           method: "POST",
           headers: {
@@ -98,8 +100,9 @@ export default function AdminPage() {
 
     try {
       const token = authUtils.getToken();
+      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
-        `${window.location.protocol}//${window.location.hostname}:3002/api/toilets/admin/${id}/reject`,
+        `${API_BASE_URL}/toilets/admin/${id}/reject`,
         {
           method: "POST",
           headers: {
