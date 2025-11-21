@@ -1,6 +1,7 @@
 // 화장실 관련 API 라우트
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import publicDataService from '../services/publicDataService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -59,6 +60,54 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '화장실 목록을 가져오는 중 오류가 발생했습니다.',
+      error: error instanceof Error ? error.message : '알 수 없는 오류'
+    });
+  }
+});
+
+// 통계 조회 (공공화장실 & 사용자 등록 화장실 개수)
+router.get('/stats/counts', async (req, res) => {
+  try {
+    console.log('📊 화장실 통계 요청');
+
+    // 승인된 사용자 등록 화장실 개수
+    const userToiletCount = await prisma.toilet.count({
+      where: {
+        type: 'user',
+        status: 'approved',
+        isActive: true
+      }
+    });
+
+    // 공공 화장실 개수 (서울교통공사 API에서 실시간으로 가져오기)
+    let publicToiletCount = 0;
+    try {
+      const apiData = await publicDataService.fetchSeoulSubwayToilets();
+
+      if (apiData?.response?.header?.resultCode === '00') {
+        const toilets = apiData.response.body.items?.item || [];
+        publicToiletCount = Array.isArray(toilets) ? toilets.length : (toilets ? 1 : 0);
+      }
+    } catch (publicApiError) {
+      console.error('⚠️ 공공 화장실 API 호출 실패, 0으로 처리:', publicApiError);
+    }
+
+    console.log(`✅ 통계: 공공 ${publicToiletCount}, 사용자 ${userToiletCount}`);
+
+    res.json({
+      success: true,
+      data: {
+        publicToilets: publicToiletCount,
+        userToilets: userToiletCount,
+        total: publicToiletCount + userToiletCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ 통계 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '통계 조회 중 오류가 발생했습니다.',
       error: error instanceof Error ? error.message : '알 수 없는 오류'
     });
   }

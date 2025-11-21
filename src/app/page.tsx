@@ -14,6 +14,9 @@ import { authUtils } from "@/lib/api";
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState("");
+  const [publicCount, setPublicCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +27,30 @@ export default function HomePage() {
       const user = authUtils.getUser();
       setUserName(user?.name || "사용자");
     }
+
+    // 통계 데이터 가져오기
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL ||
+        `${window.location.protocol}//${window.location.hostname}:3002/api`;
+      const response = await fetch(`${API_BASE_URL}/toilets/stats/counts`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setPublicCount(result.data.publicToilets);
+        setUserCount(result.data.userToilets);
+      }
+    } catch (error) {
+      console.error("통계 조회 실패:", error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
 
   const handleLogout = () => {
     authUtils.logout();
@@ -107,13 +133,25 @@ export default function HomePage() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Card className="bg-white">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">1,234</div>
+              {isLoadingStats ? (
+                <div className="text-2xl font-bold text-gray-400">...</div>
+              ) : (
+                <div className="text-2xl font-bold text-blue-600">
+                  {publicCount.toLocaleString()}
+                </div>
+              )}
               <div className="text-sm text-gray-600">공공화장실</div>
             </CardContent>
           </Card>
           <Card className="bg-white">
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-600">567</div>
+              {isLoadingStats ? (
+                <div className="text-2xl font-bold text-gray-400">...</div>
+              ) : (
+                <div className="text-2xl font-bold text-green-600">
+                  {userCount.toLocaleString()}
+                </div>
+              )}
               <div className="text-sm text-gray-600">사용자 등록</div>
             </CardContent>
           </Card>
