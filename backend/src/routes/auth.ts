@@ -87,6 +87,7 @@ router.post('/register', async (req, res) => {
           email: newUser.email,
           name: newUser.name,
           role: newUser.role,
+          isAdmin: newUser.role === 'admin',
           createdAt: newUser.createdAt
         },
         token

@@ -37,13 +37,47 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // 관리자 권한 확인 및 로그인 체크
+  useEffect(() => {
+    const checkAdminAccess = () => {
+      // 로그인 확인
+      if (!authUtils.isAuthenticated()) {
+        alert("로그인이 필요합니다.");
+        navigate("/login");
+        return false;
+      }
+
+      // 관리자 권한 확인
+      const user = authUtils.getUser();
+      if (!user || user.role !== 'admin') {
+        alert("관리자 권한이 필요합니다.");
+        navigate("/");
+        return false;
+      }
+
+      return true;
+    };
+
+    if (!checkAdminAccess()) {
+      return;
+    }
+
+    fetchPendingToilets();
+  }, [navigate]);
+
   // 승인 대기 목록 가져오기
   const fetchPendingToilets = async () => {
     try {
       setIsLoading(true);
       const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
+      const token = authUtils.getToken();
       const response = await fetch(
-        `${API_BASE_URL}/toilets/admin/pending`
+        `${API_BASE_URL}/toilets/admin/pending`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       const result = await response.json();
 
@@ -58,10 +92,6 @@ export default function AdminPage() {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchPendingToilets();
-  }, []);
 
   const handleApprove = async (id: string) => {
     if (!confirm("이 화장실을 승인하시겠습니까?")) return;
