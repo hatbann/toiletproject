@@ -46,6 +46,7 @@ const NaverMap: React.FC<NaverMapProps> = ({
   const toiletMarkersMap = useRef<Map<string, { marker: any; infoWindow: any; toilet: Toilet }>>(new Map());
   const [mapLoaded, setMapLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
 
   // toilets prop 변경 감지
   useEffect(() => {
@@ -108,14 +109,25 @@ const NaverMap: React.FC<NaverMapProps> = ({
         infoWindowsRef.current.forEach((iw) => iw.close());
       });
 
-      // 지도 드래그 종료 시 중심 좌표 변경 알림
+      // 지도 드래그 종료 시 중심 좌표 변경 알림 (debounce 적용)
       window.naver.maps.Event.addListener(map, "dragend", () => {
         const newCenter = map.getCenter();
-        console.log("🗺️ 지도 중심 변경:", { lat: newCenter.lat(), lng: newCenter.lng() });
+        console.log("🗺️ 지도 드래그 종료:", { lat: newCenter.lat(), lng: newCenter.lng() });
 
-        if (onCenterChanged) {
-          onCenterChanged({ lat: newCenter.lat(), lng: newCenter.lng() });
+        // 이전 타이머가 있으면 취소
+        if (debounceTimerRef.current !== null) {
+          clearTimeout(debounceTimerRef.current);
+          console.log("⏸️ 이전 API 요청 취소");
         }
+
+        // 1000ms(1초) 후에 API 요청 (사용자가 드래그를 멈춘 후)
+        debounceTimerRef.current = window.setTimeout(() => {
+          console.log("✅ API 요청 실행:", { lat: newCenter.lat(), lng: newCenter.lng() });
+          if (onCenterChanged) {
+            onCenterChanged({ lat: newCenter.lat(), lng: newCenter.lng() });
+          }
+          debounceTimerRef.current = null;
+        }, 1000);
       });
     } catch (err) {
       console.error("❌ 지도 초기화 실패:", err);
@@ -337,6 +349,12 @@ const NaverMap: React.FC<NaverMapProps> = ({
     return () => {
       // 컴포넌트 언마운트시 전역 핸들러 제거
       delete window.handleReviewClick;
+
+      // debounce 타이머 정리
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
     };
   }, [onReviewClick]);
 
