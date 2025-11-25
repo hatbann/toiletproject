@@ -382,12 +382,12 @@ export default function MapPage() {
           <h2 className="text-lg font-semibold mb-4">
             {/*          근처 화장실 ({toilets.length}개) */}
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {toilets &&
               toilets.map((toilet) => (
                 <Card
                   key={toilet.id}
-                  className="hover:shadow-md transition-shadow py-0 cursor-pointer"
+                  className="hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 py-3"
                   onClick={(e) => {
                     // 버튼 클릭은 카드 클릭 이벤트에서 제외
                     if ((e.target as HTMLElement).closest('button')) {
@@ -396,80 +396,97 @@ export default function MapPage() {
                     setFocusToiletId(toilet.id);
                   }}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium">{toilet.name}</h3>
-                          <Badge
-                            variant={
-                              toilet.type === "public" ? "default" : "secondary"
-                            }
-                          >
-                            {toilet.type === "public" ? "공공" : "사용자"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {toilet.address}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                          <span className="text-blue-600 font-medium">
-                            {calculateDistance(
-                              mapCenter.lat,
-                              mapCenter.lng,
-                              toilet.latitude,
-                              toilet.longitude
-                            )}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {toilet.hasPassword ? (
-                              <>
-                                <Lock className="w-3 h-3 text-red-500 flex-shrink-0" />
-                                {isLoggedIn ? (
-                                  <span className="text-red-500 text-xs">
-                                    비밀번호: 1234
-                                  </span>
-                                ) : (
-                                  <span className="text-red-500 text-xs">
-                                    로그인 필요
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <Unlock className="w-3 h-3 text-green-500 flex-shrink-0" />
-                                <span className="text-green-500 text-xs">
-                                  자유이용
-                                </span>
-                              </>
-                            )}
-                          </div>
-                          <button
-                            className="flex items-center gap-1 text-yellow-600 text-xs hover:text-yellow-700 hover:bg-yellow-50 px-2 py-1 rounded transition-colors"
-                            onClick={() => handleRatingClick(toilet)}
-                          >
-                            <span>⭐ {toilet.rating || "평점 없음"}</span>
-                            <span className="text-gray-500 text-xs">
-                              클릭하여 별점 남기기
-                            </span>
-                          </button>
-                        </div>
+                  <CardContent className="px-3 py-0">
+                    {/* 헤더: 이름 + 타입 배지 */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <h3 className="font-semibold text-base truncate">
+                          {toilet.name}
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 text-xs border-gray-300 text-gray-600"
+                        >
+                          {toilet.type === "public" ? "공공" : "사용자"}
+                        </Badge>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          길찾기
+                    </div>
+
+                    {/* 주소 */}
+                    <p className="text-xs text-gray-500 mb-2 line-clamp-1">
+                      {toilet.address}
+                    </p>
+
+                    {/* 정보 태그들 */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-600 mb-2">
+                      {/* 거리 */}
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-blue-600 font-medium">
+                          {calculateDistance(
+                            mapCenter.lat,
+                            mapCenter.lng,
+                            toilet.latitude,
+                            toilet.longitude
+                          )}
+                        </span>
+                      </span>
+
+                      <span className="text-gray-300">•</span>
+
+                      {/* 자유이용/비밀번호 */}
+                      {toilet.hasPassword ? (
+                        <span className="inline-flex items-center gap-1 text-gray-600">
+                          <Lock className="w-3 h-3" />
+                          {isLoggedIn ? "비밀번호: 1234" : "로그인 필요"}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-green-600">
+                          <Unlock className="w-3 h-3" />
+                          자유이용
+                        </span>
+                      )}
+
+                      <span className="text-gray-300">•</span>
+
+                      {/* 별점 */}
+                      <span className="inline-flex items-center gap-1">
+                        ⭐ {toilet.rating ? toilet.rating.toFixed(1) : "-"}
+                      </span>
+                    </div>
+
+                    {/* 버튼 영역 */}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 touch-manipulation min-h-[36px] text-xs"
+                      >
+                        길찾기
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRatingClick(toilet);
+                        }}
+                        className="flex-1 touch-manipulation min-h-[36px] text-xs"
+                      >
+                        별점
+                      </Button>
+                      {toilet.type === "user" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditRequest(toilet);
+                          }}
+                          className="flex-1 touch-manipulation min-h-[36px] text-xs"
+                        >
+                          수정
                         </Button>
-                        {toilet.type === "user" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditRequest(toilet)}
-                            className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                          >
-                            수정요청
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
