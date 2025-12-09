@@ -66,6 +66,39 @@ export default function RegisterPage() {
         return;
       }
 
+      // FormData 생성 (이미지 파일과 함께 전송)
+      const formDataToSend = new FormData();
+      
+      // 텍스트 데이터 추가 (trim 처리)
+      formDataToSend.append("name", formData.name.trim());
+      formDataToSend.append("address", formData.address.trim());
+      if (formData.description) {
+        formDataToSend.append("description", formData.description.trim());
+      }
+      if (formData.latitude) {
+        formDataToSend.append("latitude", formData.latitude.toString());
+      }
+      if (formData.longitude) {
+        formDataToSend.append("longitude", formData.longitude.toString());
+      }
+      formDataToSend.append("hasPassword", formData.hasPassword.toString());
+      if (formData.passwordHint) {
+        formDataToSend.append("passwordHint", formData.passwordHint.trim());
+      }
+      formDataToSend.append("creatorId", user.id);
+
+      // 이미지 파일 추가 (최대 3개)
+      formData.photos.forEach((photo) => {
+        formDataToSend.append("photos", photo);
+      });
+
+      // 디버깅: FormData 내용 확인
+      console.log('📤 전송할 데이터:', {
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        photosCount: formData.photos.length
+      });
+
       // API 요청
       const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
@@ -73,19 +106,10 @@ export default function RegisterPage() {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            // FormData를 사용할 때는 Content-Type을 설정하지 않음 (브라우저가 자동으로 설정)
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            name: formData.name,
-            address: formData.address,
-            description: formData.description,
-            latitude: formData.latitude,
-            longitude: formData.longitude,
-            hasPassword: formData.hasPassword,
-            passwordHint: formData.passwordHint,
-            creatorId: user.id,
-          }),
+          body: formDataToSend,
         }
       );
 

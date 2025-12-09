@@ -39,6 +39,35 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // 이미지 URL을 전체 URL로 변환하는 함수
+  const getImageUrl = (url: string | null | undefined): string => {
+    if (!url) return "/placeholder.svg";
+    
+    // 이미 전체 URL인 경우 (http:// 또는 https://로 시작)
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    
+    // 상대 경로인 경우 API 베이스 URL과 결합
+    const API_BASE_URL =
+      import.meta.env.VITE_API_URL ||
+      `${window.location.protocol}//${window.location.hostname}:3002/api`;
+    
+    // /uploads/로 시작하는 경우
+    if (url.startsWith("/uploads/") || url.startsWith("uploads/")) {
+      const cleanPath = url.startsWith("/") ? url : `/${url}`;
+      return `${API_BASE_URL.replace("/api", "")}${cleanPath}`;
+    }
+    
+    // /로 시작하는 상대 경로인 경우
+    if (url.startsWith("/")) {
+      return `${API_BASE_URL.replace("/api", "")}${url}`;
+    }
+    
+    // 그 외의 경우
+    return `${API_BASE_URL.replace("/api", "")}/${url}`;
+  };
+
   // 관리자 권한 확인 및 로그인 체크
   useEffect(() => {
     const checkAdminAccess = () => {
@@ -247,17 +276,27 @@ export default function AdminPage() {
                       </div>
 
                       {/* 사진 미리보기 */}
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        {toilet.photos.map((photo, index) => (
-                          <img
-                            key={index}
-                            src={photo || "/placeholder.svg"}
-                            alt={`화장실 사진 ${index + 1}`}
-                            className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-80"
-                            onClick={() => setSelectedToilet(toilet)}
-                          />
-                        ))}
-                      </div>
+                      {toilet.photos && toilet.photos.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2 mb-4">
+                          {toilet.photos.map((photo, index) => (
+                            <img
+                              key={index}
+                              src={getImageUrl(photo)}
+                              alt={`화장실 사진 ${index + 1}`}
+                              className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-80"
+                              onClick={() => setSelectedToilet(toilet)}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = "/placeholder.svg";
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 mb-4">
+                          등록된 사진이 없습니다.
+                        </div>
+                      )}
 
                       {/* 액션 버튼 */}
                       <div className="flex flex-col sm:flex-row gap-3 mt-4">
@@ -387,17 +426,27 @@ export default function AdminPage() {
                 <h4 className="font-semibold mb-3 text-gray-800 flex items-center">
                   📷 사진
                 </h4>
-                <div className="grid grid-cols-1 gap-3">
-                  {selectedToilet.photos.map((photo, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={photo || "/placeholder.svg"}
-                        alt={`화장실 사진 ${index + 1}`}
-                        className="w-full rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
-                      />
-                    </div>
-                  ))}
-                </div>
+                {selectedToilet.photos && selectedToilet.photos.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {selectedToilet.photos.map((photo, index) => (
+                      <div key={index} className="relative">
+                        <img
+                          src={getImageUrl(photo)}
+                          alt={`화장실 사진 ${index + 1}`}
+                          className="w-full rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/placeholder.svg";
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    등록된 사진이 없습니다.
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">

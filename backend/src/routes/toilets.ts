@@ -2,9 +2,40 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import publicDataService from '../services/publicDataService';
+import { uploadMultiple } from '../middleware/upload';
+import { uploadMultipleImagesToSupabase } from '../services/supabaseService';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+// 이미지 URL을 전체 URL로 변환하는 헬퍼 함수
+const getFullImageUrl = (url: string | null | undefined, req: any): string => {
+  if (!url) return '';
+  
+  // 이미 전체 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // 상대 경로인 경우 전체 URL로 변환
+  const protocol = req.protocol || 'http';
+  const host = req.get('host') || 'localhost:3002';
+  const baseUrl = `${protocol}://${host}`;
+  
+  // /uploads/로 시작하는 경우
+  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${baseUrl}${cleanPath}`;
+  }
+  
+  // /로 시작하는 상대 경로인 경우
+  if (url.startsWith('/')) {
+    return `${baseUrl}${url}`;
+  }
+  
+  // 그 외의 경우
+  return `${baseUrl}/${url}`;
+};
 
 // 모든 화장실 목록 가져오기 (승인된 화장실만)
 router.get('/', async (req, res) => {
@@ -181,15 +212,46 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 새 화장실 등록하기 (승인 대기 상태로)
-router.post('/', async (req, res) => {
+// 새 화장실 등록하기 (승인 대기 상태로) - 이미지 업로드 포함
+router.post('/', uploadMultiple, async (req, res) => {
   try {
-    const { name, address, description, latitude, longitude, hasPassword, passwordHint, creatorId } = req.body;
+    const files = req.files as Express.Multer.File[];
+    
+    // 디버깅: 요청 정보 상세 확인
+    console.log('📝 새 화장실 등록 요청 받음');
+    console.log('📦 req.body 전체:', JSON.stringify(req.body, null, 2));
+    console.log('📦 req.body 타입:', typeof req.body);
+    console.log('📦 req.body 키들:', Object.keys(req.body || {}));
+    console.log('📁 파일 개수:', files?.length || 0);
+    
+    // req.body에서 값 추출 (안전하게)
+    const name = req.body?.name;
+    const address = req.body?.address;
+    const description = req.body?.description;
+    const latitude = req.body?.latitude;
+    const longitude = req.body?.longitude;
+    const hasPassword = req.body?.hasPassword;
+    const passwordHint = req.body?.passwordHint;
+    const creatorId = req.body?.creatorId;
 
-    console.log('📝 새 화장실 등록 요청:', { name, address });
+    console.log('📋 파싱된 값들:', {
+      name: name || '(없음)',
+      address: address || '(없음)',
+      nameType: typeof name,
+      addressType: typeof address
+    });
 
     // 필수 필드 검증
-    if (!name || !address) {
+    const nameStr = typeof name === 'string' ? name : String(name || '');
+    const addressStr = typeof address === 'string' ? address : String(address || '');
+    
+    if (!nameStr || !addressStr || nameStr.trim() === '' || addressStr.trim() === '') {
+      console.error('❌ 필수 필드 누락:', { 
+        name: nameStr || '(없음)', 
+        address: addressStr || '(없음)',
+        nameType: typeof name,
+        addressType: typeof address
+      });
       return res.status(400).json({
         success: false,
         message: '필수 정보가 누락되었습니다. (이름, 주소 필요)'
@@ -197,31 +259,57 @@ router.post('/', async (req, res) => {
     }
 
     // 위도, 경도 유효성 검사 (선택사항)
-    if (latitude && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
+    const latNum = latitude ? parseFloat(latitude.toString()) : null;
+    const lngNum = longitude ? parseFloat(longitude.toString()) : null;
+    if (latNum !== null && lngNum !== null && (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180)) {
       return res.status(400).json({
         success: false,
         message: '올바르지 않은 좌표입니다.'
       });
     }
 
+    // 이미지 업로드 처리 (있는 경우)
+    let imageUrls: string[] = [];
+    if (files && files.length > 0) {
+      try {
+        console.log(`📤 ${files.length}개의 이미지를 Supabase Storage에 업로드 중...`);
+        imageUrls = await uploadMultipleImagesToSupabase(files, 'toilets');
+        console.log(`✅ 이미지 업로드 완료: ${imageUrls.length}개`);
+      } catch (uploadError) {
+        console.error('❌ 이미지 업로드 실패:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: '이미지 업로드에 실패했습니다.',
+          error: uploadError instanceof Error ? uploadError.message : '알 수 없는 오류'
+        });
+      }
+    }
+
     // 새 화장실 생성 (승인 대기 상태로)
     const newToilet = await prisma.toilet.create({
       data: {
-        name: name.trim(),
-        address: address.trim(),
+        name: nameStr.trim(),
+        address: addressStr.trim(),
         description: description?.trim() || null,
-        latitude: latitude ? parseFloat(latitude.toString()) : null,
-        longitude: longitude ? parseFloat(longitude.toString()) : null,
+        latitude: latNum,
+        longitude: lngNum,
         type: 'user', // 사용자 등록은 항상 user 타입
-        hasPassword: hasPassword || false,
+        hasPassword: hasPassword === 'true' || hasPassword === true,
         passwordHint: passwordHint?.trim() || null,
         status: 'pending', // 승인 대기 상태
         creatorId: creatorId || null,
+        // 이미지들을 Image 테이블에 저장
+        images: {
+          create: imageUrls.map(url => ({
+            url: url
+          }))
+        }
       },
       include: {
         creator: {
           select: { name: true, email: true }
-        }
+        },
+        images: true
       }
     });
 
@@ -238,6 +326,7 @@ router.post('/', async (req, res) => {
         status: newToilet.status,
         creatorName: newToilet.creator?.name,
         createdAt: newToilet.createdAt,
+        photos: newToilet.images.map(img => img.url),
       }
     });
 
@@ -399,7 +488,7 @@ router.get('/admin/pending', async (req, res) => {
         description: toilet.description,
         hasPassword: toilet.hasPassword,
         passwordHint: toilet.passwordHint,
-        photos: toilet.images.map(img => img.url),
+        photos: toilet.images.map(img => getFullImageUrl(img.url, req)),
         createdAt: toilet.createdAt,
         submittedBy: toilet.creator?.name || '알 수 없음',
         submitterEmail: toilet.creator?.email,

@@ -15,6 +15,7 @@
 ## 🛠️ 기술 스택
 
 ### Frontend
+
 - **React 18** - UI 라이브러리
 - **TypeScript** - 타입 안정성
 - **Vite** - 빌드 도구 및 개발 서버
@@ -25,6 +26,7 @@
 - **Lucide React** - 아이콘
 
 ### Backend
+
 - **Node.js** - 런타임 환경
 - **Express** - 웹 프레임워크
 - **Prisma** - ORM (Object-Relational Mapping)
@@ -32,8 +34,10 @@
 - **JWT** - 인증 토큰
 - **Bcrypt** - 비밀번호 암호화
 - **Multer** - 파일 업로드 처리
+- **Supabase Storage** - 이미지 저장소
 
 ### Deployment
+
 - **Vercel** - 프론트엔드 배포
 - **Railway** - 백엔드 및 데이터베이스 호스팅
 
@@ -48,18 +52,21 @@
 ### 설치 및 실행
 
 #### 1. 저장소 클론
+
 ```bash
 git clone https://github.com/yourusername/toilet-map-app.git
 cd toilet-map-app
 ```
 
 #### 2. 프론트엔드 설정
+
 ```bash
 npm install
 npm run dev
 ```
 
 #### 3. 백엔드 설정
+
 ```bash
 cd backend
 npm install
@@ -77,34 +84,44 @@ npm run dev
 ### 환경 변수 설정
 
 #### 프론트엔드 (.env)
+
 ```env
 VITE_NAVER_MAP_CLIENT_ID=your_naver_map_client_id
 VITE_API_URL=http://localhost:3002/api
 ```
 
 #### 백엔드 (backend/.env)
+
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/toilet_map
 JWT_SECRET=your_jwt_secret_key
 PORT=3002
 NAVER_CLIENT_ID=your_naver_client_id
 NAVER_CLIENT_SECRET=your_naver_client_secret
+
+# Supabase 설정 (이미지 업로드용)
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_STORAGE_BUCKET=toilets
 ```
 
 ## 📱 주요 화면
 
 ### 메인 지도
+
 - 네이버 지도 기반 화장실 위치 표시
 - 현재 위치 중심 검색
 - 지도 이동 시 자동 재검색
 
 ### 화장실 등록
+
 - 주소 검색 (네이버 로컬 API)
 - 위도/경도 자동 저장
-- 사진 업로드 (최대 3장)
+- 사진 업로드 (최대 3장) - Supabase Storage에 저장
 - 비밀번호 필요 여부 및 힌트 입력
 
 ### 관리자 페이지
+
 - 승인 대기 목록 조회
 - 상세 정보 확인
 - 승인/거부 처리
@@ -112,10 +129,12 @@ NAVER_CLIENT_SECRET=your_naver_client_secret
 ## 🗄️ 데이터베이스 스키마
 
 ### User (사용자)
+
 - id, username, email, password
 - isAdmin (관리자 여부)
 
 ### Toilet (화장실)
+
 - id, name, address, latitude, longitude
 - description, photos
 - hasPassword, passwordHint
@@ -131,10 +150,12 @@ NAVER_CLIENT_SECRET=your_naver_client_secret
 ## 🌐 API 엔드포인트
 
 ### 인증
+
 - `POST /api/auth/register` - 회원가입
 - `POST /api/auth/login` - 로그인
 
 ### 화장실
+
 - `GET /api/toilets` - 화장실 목록 조회 (위치 기반)
 - `POST /api/toilets` - 화장실 등록 (인증 필요)
 - `GET /api/toilets/admin/pending` - 승인 대기 목록
@@ -142,6 +163,7 @@ NAVER_CLIENT_SECRET=your_naver_client_secret
 - `POST /api/toilets/admin/:id/reject` - 거부
 
 ### 공공 데이터
+
 - `GET /api/public-toilets` - 서울시 공공 화장실 조회
 - `GET /api/public-toilets/search-address` - 주소 검색
 

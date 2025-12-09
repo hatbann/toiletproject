@@ -16,9 +16,29 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 미들웨어 설정 (지금은 몰라도 됩니다 - 나중에 설명할게요!)
+// 미들웨어 설정
 app.use(cors()); // 프론트엔드에서 접근 허용
-app.use(express.json()); // JSON 데이터 받을 수 있게 설정
+
+// JSON 파싱 (multipart/form-data는 multer가 처리하므로 조건부 적용)
+app.use((req, res, next) => {
+  // Content-Type이 multipart/form-data가 아닌 경우에만 JSON 파싱
+  const contentType = req.headers['content-type'] || '';
+  if (!contentType.includes('multipart/form-data')) {
+    express.json()(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// URL-encoded 파싱 (multipart/form-data는 multer가 처리)
+app.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || '';
+  if (!contentType.includes('multipart/form-data')) {
+    express.urlencoded({ extended: true })(req, res, next);
+  } else {
+    next();
+  }
+});
 
 // 첫 번째 API - 테스트용
 app.get('/api/hello', (req, res) => {
