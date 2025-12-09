@@ -33,7 +33,9 @@ interface PendingToilet {
 
 export default function AdminPage() {
   const [pendingToilets, setPendingToilets] = useState<PendingToilet[]>([]);
-  const [selectedToilet, setSelectedToilet] = useState<PendingToilet | null>(null);
+  const [selectedToilet, setSelectedToilet] = useState<PendingToilet | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -49,7 +51,7 @@ export default function AdminPage() {
 
       // 관리자 권한 확인
       const user = authUtils.getUser();
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role !== "admin") {
         alert("관리자 권한이 필요합니다.");
         navigate("/");
         return false;
@@ -69,16 +71,15 @@ export default function AdminPage() {
   const fetchPendingToilets = async () => {
     try {
       setIsLoading(true);
-      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL ||
+        `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const token = authUtils.getToken();
-      const response = await fetch(
-        `${API_BASE_URL}/toilets/admin/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/toilets/admin/pending`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const result = await response.json();
 
       if (result.success) {
@@ -98,7 +99,9 @@ export default function AdminPage() {
 
     try {
       const token = authUtils.getToken();
-      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL ||
+        `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
         `${API_BASE_URL}/toilets/admin/${id}/approve`,
         {
@@ -130,7 +133,9 @@ export default function AdminPage() {
 
     try {
       const token = authUtils.getToken();
-      const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:3002/api`;
+      const API_BASE_URL =
+        import.meta.env.VITE_API_URL ||
+        `${window.location.protocol}//${window.location.hostname}:3002/api`;
       const response = await fetch(
         `${API_BASE_URL}/toilets/admin/${id}/reject`,
         {
@@ -183,7 +188,13 @@ export default function AdminPage() {
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
-            {pendingToilets.length === 0 ? (
+            {isLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center text-gray-500">
+                  로딩 중...
+                </CardContent>
+              </Card>
+            ) : pendingToilets.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center text-gray-500">
                   승인 대기 중인 화장실이 없습니다.
@@ -228,7 +239,9 @@ export default function AdminPage() {
                           )}
                         </div>
                         <div className="text-right text-xs text-gray-500">
-                          <p>{new Date(toilet.createdAt).toLocaleString('ko-KR')}</p>
+                          <p>
+                            {new Date(toilet.createdAt).toLocaleString("ko-KR")}
+                          </p>
                           <p>by {toilet.submittedBy}</p>
                         </div>
                       </div>
@@ -247,41 +260,41 @@ export default function AdminPage() {
                       </div>
 
                       {/* 액션 버튼 */}
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex flex-col sm:flex-row gap-3 mt-4">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="touch-manipulation min-h-[44px]"
+                          className="touch-manipulation min-h-[48px] w-full sm:w-auto flex-1 font-medium"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedToilet(toilet);
                           }}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
+                          <Eye className="w-4 h-4 mr-2" />
                           상세보기
                         </Button>
                         <Button
                           size="sm"
                           variant="default"
-                          className="touch-manipulation min-h-[44px]"
+                          className="touch-manipulation min-h-[48px] w-full sm:w-auto flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleApprove(toilet.id);
                           }}
                         >
-                          <Check className="w-4 h-4 mr-1" />
+                          <Check className="w-4 h-4 mr-2" />
                           승인
                         </Button>
                         <Button
                           size="sm"
-                          variant="destructive"
-                          className="touch-manipulation min-h-[44px]"
+                          variant="outline"
+                          className="touch-manipulation min-h-[48px] w-full sm:w-auto flex-1 border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium shadow-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleReject(toilet.id);
                           }}
                         >
-                          <X className="w-4 h-4 mr-1" />
+                          <X className="w-4 h-4 mr-2" />
                           거부
                         </Button>
                       </div>
@@ -304,93 +317,109 @@ export default function AdminPage() {
 
       {/* 상세보기 모달 */}
       {selectedToilet && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <CardTitle>{selectedToilet.name}</CardTitle>
+        <div className="fixed inset-0 bg-white bg-opacity-80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-xl">
+            <CardHeader className="bg-white border-b border-gray-200 pb-4">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  {selectedToilet.name}
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="hover:bg-gray-100 rounded-full h-8 w-8 p-0"
                   onClick={() => setSelectedToilet(null)}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-4 h-4 text-gray-500" />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-1">주소</h4>
-                <p className="text-sm text-gray-600">
+            <CardContent className="space-y-6 p-6 bg-white">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-gray-800 flex items-center">
+                  📍 주소
+                </h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
                   {selectedToilet.address}
                 </p>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-1">설명</h4>
-                <p className="text-sm text-gray-600">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2 text-gray-800 flex items-center">
+                  📝 설명
+                </h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
                   {selectedToilet.description}
                 </p>
               </div>
 
-              <div>
-                <h4 className="font-medium mb-1">이용 방법</h4>
-                <div className="flex items-center gap-2">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-3 text-gray-800 flex items-center">
+                  🔐 이용 방법
+                </h4>
+                <div className="flex items-center gap-3 p-3 rounded-md bg-white border">
                   {selectedToilet.hasPassword ? (
                     <>
-                      <Lock className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-red-600">
+                      <Lock className="w-5 h-5 text-red-500" />
+                      <span className="text-sm font-medium text-red-600">
                         비밀번호 필요
                       </span>
                     </>
                   ) : (
                     <>
-                      <Unlock className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-green-600">자유이용</span>
+                      <Unlock className="w-5 h-5 text-green-500" />
+                      <span className="text-sm font-medium text-green-600">
+                        자유이용
+                      </span>
                     </>
                   )}
                 </div>
                 {selectedToilet.hasPassword && selectedToilet.passwordHint && (
-                  <p className="text-sm text-blue-600 mt-1">
-                    힌트: {selectedToilet.passwordHint}
-                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      💡 힌트: {selectedToilet.passwordHint}
+                    </p>
+                  </div>
                 )}
               </div>
 
-              <div>
-                <h4 className="font-medium mb-2">사진</h4>
-                <div className="space-y-2">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-semibold mb-3 text-gray-800 flex items-center">
+                  📷 사진
+                </h4>
+                <div className="grid grid-cols-1 gap-3">
                   {selectedToilet.photos.map((photo, index) => (
-                    <img
-                      key={index}
-                      src={photo || "/placeholder.svg"}
-                      alt={`화장실 사진 ${index + 1}`}
-                      className="w-full rounded"
-                    />
+                    <div key={index} className="relative">
+                      <img
+                        src={photo || "/placeholder.svg"}
+                        alt={`화장실 사진 ${index + 1}`}
+                        className="w-full rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
-                  className="flex-1 touch-manipulation min-h-[48px]"
+                  className="flex-1 touch-manipulation min-h-[52px] bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleApprove(selectedToilet.id);
                   }}
                 >
-                  <Check className="w-4 h-4 mr-1" />
+                  <Check className="w-5 h-5 mr-2" />
                   승인
                 </Button>
                 <Button
-                  variant="destructive"
-                  className="flex-1 touch-manipulation min-h-[48px]"
+                  variant="outline"
+                  className="flex-1 touch-manipulation min-h-[52px] border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400 font-medium shadow-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleReject(selectedToilet.id);
                   }}
                 >
-                  <X className="w-4 h-4 mr-1" />
+                  <X className="w-5 h-5 mr-2" />
                   거부
                 </Button>
               </div>
