@@ -437,7 +437,7 @@ export default function MapPage() {
                       {toilet.hasPassword ? (
                         <span className="inline-flex items-center gap-1 text-gray-600">
                           <Lock className="w-3 h-3" />
-                          {isLoggedIn ? "비밀번호: 1234" : "로그인 필요"}
+                          {toilet.passwordHint ? `힌트: ${toilet.passwordHint}` : "비밀번호 필요"}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-green-600">
