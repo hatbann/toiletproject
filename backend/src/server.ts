@@ -18,8 +18,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 미들웨어 설정
-app.use(cors()); // 프론트엔드에서 접근 허용
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://peeple.vercel.app",
+    ],
+    credentials: true,
+  })
+);
 
 app.use("/debug", debugRouter);
 
