@@ -39,7 +39,8 @@
 ### Deployment
 
 - **Vercel** - 프론트엔드 배포
-- **Railway** - 백엔드 및 데이터베이스 호스팅
+- **Render** - 백엔드 호스팅
+- **Supabase** - 데이터베이스 및 이미지 저장소
 
 ## 🚀 시작하기
 
@@ -93,13 +94,15 @@ VITE_API_URL=http://localhost:3002/api
 #### 백엔드 (backend/.env)
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/toilet_map
+# Supabase 데이터베이스 연결 (프로덕션)
+# 또는 로컬 개발 시: postgresql://user:password@localhost:5432/toilet_map
+DATABASE_URL=postgresql://postgres:[password]@[host]:5432/postgres
 JWT_SECRET=your_jwt_secret_key
 PORT=3002
 NAVER_CLIENT_ID=your_naver_client_id
 NAVER_CLIENT_SECRET=your_naver_client_secret
 
-# Supabase 설정 (이미지 업로드용)
+# Supabase 설정 (데이터베이스 및 이미지 저장소)
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 SUPABASE_STORAGE_BUCKET=toilets
